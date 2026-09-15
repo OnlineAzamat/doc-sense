@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DocSense</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <span class="brand">DocSense</span>
+    <span class="version-badge">v0.9 beta</span>
+  </header>
+
+  <main class="layout">
+    <section class="panel pdf-panel">
+      <div class="dropzone" id="dropzone">
+        <p>PDF faylni shu yerga tashlang yoki tanlang</p>
+      </div>
+    </section>
+
+    <section class="panel chat-panel">
+      <div class="chat-messages" id="chat-messages"></div>
+      <div class="chat-input-row">
+        <input
+          type="text"
+          id="chat-input"
+          class="chat-input"
+          placeholder="Savol yozing..."
+          disabled
+        />
+        <button id="chat-send" class="chat-send" disabled>Yuborish</button>
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
