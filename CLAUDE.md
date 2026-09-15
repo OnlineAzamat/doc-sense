@@ -21,7 +21,7 @@ Priority order:
 - Python 3.11, FastAPI, uvicorn
 - PDF parsing: PyMuPDF (`fitz`)
 - Embeddings: `bge-m3` via Ollama (`http://localhost:11434/api/embed`)
-- LLM: `qwen3:32b` via Ollama (`/api/chat`), streaming enabled
+- LLM: `qwen3.6:27b` via Ollama (`/api/chat`), streaming enabled
 - Vector search: plain numpy cosine similarity, in memory. No FAISS, no Qdrant,
   no Chroma. The corpus is one document.
 - Frontend: single `index.html` + `app.js` + `style.css`, served by FastAPI.
@@ -73,7 +73,7 @@ than returning no highlight at all.
   "Qayta urinib ko'ring."
 
 ## Ollama
-Assume Ollama is already running with `qwen3:26b` and `bge-m3` pulled. If a call
+Assume Ollama is already running with `qwen3.6:27b` and `bge-m3` pulled. If a call
 fails, print a one-line hint to the server console and return a clean error to
 the client. Do not add fallback models silently.
 
