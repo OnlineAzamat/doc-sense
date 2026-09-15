@@ -2,6 +2,7 @@
 
 import sys
 
+import fitz
 import numpy as np
 
 from ingest import ingest_pdf
@@ -10,6 +11,7 @@ from llm import answer, embed
 _chunks: list[dict] = []
 _vectors: np.ndarray | None = None
 _pdf_path: str | None = None
+_page_count: int = 0
 
 
 def _l2_normalize(matrix: np.ndarray) -> np.ndarray:
@@ -19,7 +21,7 @@ def _l2_normalize(matrix: np.ndarray) -> np.ndarray:
 
 
 async def load(pdf_path: str) -> None:
-    global _chunks, _vectors, _pdf_path
+    global _chunks, _vectors, _pdf_path, _page_count
 
     chunks = ingest_pdf(pdf_path)
     texts = [c["text"] for c in chunks]
@@ -27,9 +29,17 @@ async def load(pdf_path: str) -> None:
 
     matrix = _l2_normalize(np.array(raw_vectors, dtype=np.float32))
 
+    with fitz.open(pdf_path) as doc:
+        page_count = doc.page_count
+
     _chunks = chunks
     _vectors = matrix
     _pdf_path = pdf_path
+    _page_count = page_count
+
+
+def stats() -> dict:
+    return {"pages": _page_count, "chunks": len(_chunks)}
 
 
 async def search(query: str, k: int = 4) -> list[dict]:

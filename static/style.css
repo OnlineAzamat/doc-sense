@@ -67,6 +67,82 @@ body {
   color: #9aa4b2;
   text-align: center;
   padding: 20px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.dropzone.drag-over {
+  border-color: #4f8cff;
+  background: #182236;
+}
+
+.dropzone.error p {
+  color: #ff6b6b;
+}
+
+.dropzone[hidden] {
+  display: none;
+}
+
+.pdf-viewer {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.pdf-viewer[hidden] {
+  display: none;
+}
+
+.pdf-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 8px;
+  margin-bottom: 10px;
+  background: #151a23;
+  border-radius: 10px;
+}
+
+.pdf-nav-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid #232a38;
+  background: #0b0e14;
+  color: #e6e8eb;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.pdf-nav-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.page-indicator {
+  font-size: 13px;
+  color: #9aa4b2;
+  min-width: 56px;
+  text-align: center;
+}
+
+.pdf-canvas-wrap {
+  flex: 1;
+  overflow: auto;
+  background: #151a23;
+  border-radius: 12px;
+  display: flex;
+  justify-content: center;
+  padding: 12px;
+}
+
+.pdf-canvas-wrap canvas {
+  height: fit-content;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
 }
 
 .chat-messages {
@@ -75,6 +151,34 @@ body {
   border-radius: 12px;
   padding: 12px;
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.chat-msg {
+  max-width: 85%;
+  padding: 10px 14px;
+  border-radius: 12px;
+  line-height: 1.4;
+  font-size: 14px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.chat-msg-user {
+  align-self: flex-end;
+  background: #4f8cff;
+  color: #fff;
+  border-bottom-right-radius: 2px;
+}
+
+.chat-msg-assistant {
+  align-self: flex-start;
+  background: #0b0e14;
+  border: 1px solid #232a38;
+  color: #e6e8eb;
+  border-bottom-left-radius: 2px;
 }
 
 .chat-input-row {

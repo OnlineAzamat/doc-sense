@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>DocSense</title>
   <link rel="stylesheet" href="style.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 </head>
 <body>
   <header class="topbar">
@@ -15,7 +16,19 @@
   <main class="layout">
     <section class="panel pdf-panel">
       <div class="dropzone" id="dropzone">
-        <p>PDF faylni shu yerga tashlang yoki tanlang</p>
+        <p id="dropzone-text">PDF faylni shu yerga tashlang yoki tanlang</p>
+        <input type="file" id="file-input" accept="application/pdf" hidden />
+      </div>
+
+      <div class="pdf-viewer" id="pdf-viewer" hidden>
+        <div class="pdf-toolbar">
+          <button id="prev-page" class="pdf-nav-btn">&lsaquo;</button>
+          <span id="page-indicator" class="page-indicator">1 / 1</span>
+          <button id="next-page" class="pdf-nav-btn">&rsaquo;</button>
+        </div>
+        <div class="pdf-canvas-wrap">
+          <canvas id="pdf-canvas"></canvas>
+        </div>
       </div>
     </section>
 
