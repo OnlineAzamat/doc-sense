@@ -391,14 +391,37 @@ body {
 
 .msg-source {
   display: flex;
-  align-items: center;
-  flex-wrap: wrap;
+  flex-direction: column;
+  align-items: flex-start;
   gap: 8px;
   margin-top: 10px;
 }
 
 .msg-source[hidden] {
   display: none;
+}
+
+.source-scope {
+  font-size: 11px;
+  color: #6b7280;
+  letter-spacing: 0.01em;
+}
+
+.source-chips {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.source-more {
+  color: #6b7280;
+  border-color: #232a38;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.source-more:hover {
+  background: rgba(255, 255, 255, 0.09);
 }
 
 .source-chip {

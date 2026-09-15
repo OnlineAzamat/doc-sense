@@ -41,6 +41,7 @@ const docSummaryTopics = document.getElementById("doc-summary-topics");
 
 const HIGHLIGHT_COLOR_ALPHA = 0.35;
 const GENERIC_ERROR = "Qayta urinib ko'ring.";
+const CHIP_LIMIT = 3;
 
 let pdfDoc = null;
 let currentPage = 1;
@@ -230,10 +231,18 @@ function pulseHighlight() {
   requestAnimationFrame(frame);
 }
 
-async function revealHighlight(pageNo) {
-  currentPage = pageNo;
-  await renderPage(pageNo);
-  scrollHighlightIntoView();
+async function showSource(source, scroll) {
+  activeHighlight = {
+    pageNo: source.page_no,
+    rects: source.rects,
+    pageWidth: source.page_width,
+    pageHeight: source.page_height,
+  };
+  currentPage = source.page_no;
+  await renderPage(source.page_no);
+  if (scroll) {
+    scrollHighlightIntoView();
+  }
   pulseHighlight();
 }
 
@@ -386,17 +395,59 @@ function confidenceLabel(score) {
   return "Past ishonch";
 }
 
-function renderSourceChip(container, pageNo, score) {
-  container.innerHTML = "";
+function scopeLineText(scope, analyzed) {
+  if (scope === "broad") {
+    const pages = (analyzed && analyzed.pages) || 0;
+    const sections = (analyzed && analyzed.sections) || 0;
+    return `Butun hujjat bo'yicha · ${pages} sahifa, ${sections} bo'lim tahlil qilindi`;
+  }
+  return "Manba";
+}
 
+function makeChip(source) {
   const chip = document.createElement("button");
   chip.type = "button";
   chip.className = "source-chip";
-  chip.innerHTML = `${DOC_ICON_SVG}<span>Manba — ${pageNo}-sahifa</span>`;
-  chip.addEventListener("click", () => revealHighlight(pageNo));
-  container.appendChild(chip);
+  chip.innerHTML = `${DOC_ICON_SVG}<span>${source.page_no}-sahifa</span>`;
+  chip.addEventListener("click", () => showSource(source, true));
+  return chip;
+}
 
-  if (typeof score === "number") {
+function renderSources(container, data, score) {
+  container.innerHTML = "";
+
+  const sources = data.sources || [];
+  if (data.scope === "not_found" || !sources.length) {
+    container.hidden = true;
+    return;
+  }
+
+  const scopeLine = document.createElement("div");
+  scopeLine.className = "source-scope";
+  scopeLine.textContent = scopeLineText(data.scope, data.analyzed);
+  container.appendChild(scopeLine);
+
+  const chips = document.createElement("div");
+  chips.className = "source-chips";
+  container.appendChild(chips);
+
+  const visible = sources.slice(0, CHIP_LIMIT);
+  const hidden = sources.slice(CHIP_LIMIT);
+  visible.forEach((source) => chips.appendChild(makeChip(source)));
+
+  if (hidden.length) {
+    const more = document.createElement("button");
+    more.type = "button";
+    more.className = "source-chip source-more";
+    more.textContent = `+${hidden.length}`;
+    more.addEventListener("click", () => {
+      more.remove();
+      hidden.forEach((source) => chips.appendChild(makeChip(source)));
+    });
+    chips.appendChild(more);
+  }
+
+  if (data.scope === "specific" && typeof score === "number") {
     const wrap = document.createElement("div");
     wrap.className = "confidence-wrap";
 
@@ -448,15 +499,13 @@ async function handleAsk(presetQuestion) {
     status.collapse();
     await revealText(textEl, data.answer || GENERIC_ERROR);
 
-    if (data.found && data.page_no && pdfDoc) {
-      activeHighlight = {
-        pageNo: data.page_no,
-        rects: data.rects,
-        pageWidth: data.page_width,
-        pageHeight: data.page_height,
-      };
-      renderSourceChip(sourceEl, data.page_no, data.top_score);
-      await revealHighlight(data.page_no);
+    renderSources(sourceEl, data, data.top_score);
+
+    const sources = data.sources || [];
+    if (sources.length && pdfDoc) {
+      // Auto-highlight the first source. A broad answer spans the whole
+      // document, so don't scroll the viewer away from where the user is.
+      await showSource(sources[0], data.scope === "specific");
     }
   } catch (err) {
     status.stop();

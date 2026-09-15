@@ -4,43 +4,16 @@ import json
 
 import httpx
 
+import prompts
+
 OLLAMA_URL = "http://localhost:11434"
 EMBED_MODEL = "bge-m3"
 EMBED_BATCH_SIZE = 32
 CHAT_MODEL = "qwen3.6:27b"
+GROUP_SUMMARY_MODEL = "qwen3:32b"
+MAX_SOURCES = 5
 
 _client = httpx.AsyncClient(timeout=120.0)
-
-_SYSTEM_PROMPT = (
-    "You are DocSense, a document Q&A assistant. Answer strictly using the "
-    "numbered excerpts the user provides — never use outside knowledge. "
-    "Answer in the same language as the question. If the excerpts do not "
-    "contain the answer, say so plainly instead of guessing.\n\n"
-    "Respond with ONLY a JSON object. No markdown code fences, no preamble, "
-    "no explanation before or after it. It must have exactly these keys:\n"
-    '{"answer": str, "page_no": int, "quote": str, "found": bool}\n\n'
-    '"quote" must be copied verbatim, word-for-word, from one of the '
-    "excerpts, 5 to 25 words long, and must be the single passage that best "
-    'supports the answer. "page_no" must be the page number of the excerpt '
-    'that quote came from. If the excerpts do not contain the answer, set '
-    '"found" to false and leave "quote" empty.'
-)
-
-_STRICT_REMINDER = (
-    "Your previous reply was not valid JSON. Reply again with ONLY the JSON "
-    "object described above — no markdown fences, no extra text."
-)
-
-_SUMMARY_SYSTEM_PROMPT = (
-    "You are DocSense, summarizing an uploaded document from sampled excerpts "
-    "of it. Answer in the same language as the excerpts.\n\n"
-    "Respond with ONLY a JSON object. No markdown code fences, no preamble, "
-    "no explanation before or after it. It must have exactly these keys:\n"
-    '{"title": str, "summary": str, "topics": [str, str, str]}\n\n'
-    '"title" is a short document title, a few words. "summary" is 3-4 '
-    'sentences describing what the document covers. "topics" is exactly 3 '
-    "short topic labels, a few words each."
-)
 
 
 async def embed(texts: list[str]) -> list[list[float]]:
@@ -63,12 +36,31 @@ async def embed(texts: list[str]) -> list[list[float]]:
     return vectors
 
 
-def _build_user_message(question: str, chunks: list[dict]) -> str:
+def _excerpt_label(chunk: dict) -> str:
+    pages = chunk.get("pages") or [chunk["page_no"]]
+    if len(pages) == 1:
+        return f"page {pages[0]}"
+    return f"pages {pages[0]}-{pages[-1]}, SUMMARY"
+
+
+def allowed_pages(chunks: list[dict]) -> set[int]:
+    pages: set[int] = set()
+    for chunk in chunks:
+        pages.update(chunk.get("pages") or [chunk["page_no"]])
+    return pages
+
+
+def _build_user_message(question: str, chunks: list[dict], mode: str) -> str:
     excerpts = "\n\n".join(
-        f"[{i + 1}] (page {chunk['page_no']}) {chunk['text']}"
+        f"[{i + 1}] ({_excerpt_label(chunk)}) {chunk['text']}"
         for i, chunk in enumerate(chunks)
     )
-    return f"Excerpts:\n{excerpts}\n\nQuestion: {question}"
+    parts = [f"Excerpts:\n{excerpts}"]
+    if any(not chunk.get("verbatim", True) for chunk in chunks):
+        parts.append(prompts.SUMMARY_EXCERPT_NOTE)
+    parts.append(prompts.MODE_HINT.get(mode, prompts.MODE_HINT["specific"]))
+    parts.append(f"Question: {question}")
+    return "\n\n".join(parts)
 
 
 def _extract_json(raw: str) -> dict | None:
@@ -93,9 +85,46 @@ def _extract_json(raw: str) -> dict | None:
 
 def _parse_answer(raw: str) -> dict | None:
     data = _extract_json(raw)
-    if data is None or not {"answer", "page_no", "quote", "found"} <= data.keys():
+    if data is None or not {"answer", "scope", "sources"} <= data.keys():
         return None
     return data
+
+
+def _clean_answer(data: dict, pages: set[int]) -> dict:
+    scope = data.get("scope")
+    if scope not in ("specific", "broad", "not_found"):
+        scope = "specific"
+
+    sources: list[dict] = []
+    seen: set[tuple[int, str]] = set()
+    raw_sources = data.get("sources")
+    for item in raw_sources if isinstance(raw_sources, list) else []:
+        if not isinstance(item, dict):
+            continue
+        try:
+            page_no = int(item["page_no"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        quote = item.get("quote")
+        if not isinstance(quote, str) or not quote.strip():
+            continue
+        if page_no not in pages:
+            print(f"[llm] dropped source: page {page_no} was not in the retrieved context")
+            continue
+        key = (page_no, quote.strip())
+        if key in seen:
+            continue
+        seen.add(key)
+        sources.append({"page_no": page_no, "quote": quote.strip()})
+        if len(sources) == MAX_SOURCES:
+            break
+
+    answer_text = data.get("answer")
+    return {
+        "answer": answer_text if isinstance(answer_text, str) else "",
+        "scope": scope,
+        "sources": [] if scope == "not_found" else sources,
+    }
 
 
 def _parse_summary(raw: str) -> dict | None:
@@ -105,38 +134,50 @@ def _parse_summary(raw: str) -> dict | None:
     return data
 
 
-async def _chat(messages: list[dict]) -> str:
+async def _chat(messages: list[dict], model: str = CHAT_MODEL) -> str:
     try:
         response = await _client.post(
             f"{OLLAMA_URL}/api/chat",
-            json={"model": CHAT_MODEL, "messages": messages, "stream": False},
+            json={"model": model, "messages": messages, "stream": False},
         )
         response.raise_for_status()
     except httpx.HTTPError as exc:
-        print(f"[llm] Ollama chat call failed (is `ollama serve` running with {CHAT_MODEL} pulled?): {exc}")
+        print(f"[llm] Ollama chat call failed (is `ollama serve` running with {model} pulled?): {exc}")
         raise
     return response.json()["message"]["content"]
 
 
-async def answer(question: str, chunks: list[dict]) -> dict:
+async def answer(question: str, chunks: list[dict], mode: str = "specific") -> dict:
     messages = [
-        {"role": "system", "content": _SYSTEM_PROMPT},
-        {"role": "user", "content": _build_user_message(question, chunks)},
+        {"role": "system", "content": prompts.SYSTEM_PROMPT},
+        {"role": "user", "content": _build_user_message(question, chunks, mode)},
     ]
+    pages = allowed_pages(chunks)
 
     raw = await _chat(messages)
     parsed = _parse_answer(raw)
     if parsed is not None:
-        return parsed
+        return _clean_answer(parsed, pages)
 
     messages.append({"role": "assistant", "content": raw})
-    messages.append({"role": "user", "content": _STRICT_REMINDER})
+    messages.append({"role": "user", "content": prompts.STRICT_REMINDER})
     raw_retry = await _chat(messages)
     parsed_retry = _parse_answer(raw_retry)
     if parsed_retry is not None:
-        return parsed_retry
+        return _clean_answer(parsed_retry, pages)
 
-    return {"found": False}
+    print("[llm] answer JSON still unparseable after retry")
+    return {"answer": "", "scope": "not_found", "sources": []}
+
+
+async def summarize_group(texts: list[str]) -> str:
+    """Condense a group of chunks into one paragraph, for broad-question context."""
+    excerpts = "\n\n".join(f"[{i + 1}] {text}" for i, text in enumerate(texts))
+    messages = [
+        {"role": "system", "content": prompts.GROUP_SUMMARY_SYSTEM_PROMPT},
+        {"role": "user", "content": f"Excerpts:\n{excerpts}"},
+    ]
+    return (await _chat(messages, model=GROUP_SUMMARY_MODEL)).strip()
 
 
 def _build_summary_message(chunks: list[dict]) -> str:
@@ -146,7 +187,7 @@ def _build_summary_message(chunks: list[dict]) -> str:
 
 async def summarize_document(chunks: list[dict]) -> dict:
     messages = [
-        {"role": "system", "content": _SUMMARY_SYSTEM_PROMPT},
+        {"role": "system", "content": prompts.SUMMARY_SYSTEM_PROMPT},
         {"role": "user", "content": _build_summary_message(chunks)},
     ]
 
@@ -156,7 +197,7 @@ async def summarize_document(chunks: list[dict]) -> dict:
         return parsed
 
     messages.append({"role": "assistant", "content": raw})
-    messages.append({"role": "user", "content": _STRICT_REMINDER})
+    messages.append({"role": "user", "content": prompts.STRICT_REMINDER})
     raw_retry = await _chat(messages)
     parsed_retry = _parse_summary(raw_retry)
     if parsed_retry is not None:

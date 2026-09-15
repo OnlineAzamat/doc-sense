@@ -6,7 +6,11 @@ import fitz
 import numpy as np
 
 from ingest import ingest_pdf
-from llm import answer, embed
+from llm import answer, embed, summarize_group
+
+BROAD_SAMPLE_COUNT = 16
+BROAD_CONTEXT_LIMIT = 12000
+SUMMARY_GROUP_SIZE = 6
 
 _chunks: list[dict] = []
 _vectors: np.ndarray | None = None
@@ -42,6 +46,11 @@ def stats() -> dict:
     return {"pages": _page_count, "chunks": len(_chunks)}
 
 
+def page_text(page_no: int) -> str:
+    """All chunk text on one page — the fallback target when a quote won't locate."""
+    return " ".join(c["text"] for c in _chunks if c["page_no"] == page_no)
+
+
 def sample_for_summary() -> list[dict]:
     first = _chunks[:10]
     rest = _chunks[10:]
@@ -69,26 +78,88 @@ async def search(query: str, k: int = 4) -> list[dict]:
     for idx in top_indices:
         hit = dict(_chunks[idx])
         hit["score"] = float(scores[idx])
+        hit["pages"] = [hit["page_no"]]
+        hit["verbatim"] = True
         hits.append(hit)
     return hits
+
+
+def _even_sample(count: int) -> list[dict]:
+    """`count` chunks at even intervals across the whole document."""
+    if len(_chunks) <= count:
+        return list(_chunks)
+    step = len(_chunks) / count
+    return [_chunks[int(i * step)] for i in range(count)]
+
+
+async def _summarize_in_groups(chunks: list[dict]) -> list[dict]:
+    groups = [chunks[i : i + SUMMARY_GROUP_SIZE] for i in range(0, len(chunks), SUMMARY_GROUP_SIZE)]
+    summaries = []
+
+    for group in groups:
+        pages = sorted({c["page_no"] for c in group})
+        try:
+            text = await summarize_group([c["text"] for c in group])
+            verbatim = False
+        except Exception as exc:
+            # Never lose the group — fall back to its first chunk, which at least
+            # stays verbatim and quotable.
+            print(f"[store] group summary failed for pages {pages[0]}-{pages[-1]}, using raw chunk: {exc}")
+            text = group[0]["text"]
+            pages = [group[0]["page_no"]]
+            verbatim = True
+
+        summaries.append(
+            {
+                "id": f"group-{pages[0]}-{pages[-1]}",
+                "page_no": pages[0],
+                "pages": pages,
+                "text": text,
+                "verbatim": verbatim,
+                "source_count": len(group),
+            }
+        )
+
+    print(f"[store] broad context condensed into {len(summaries)} partial summaries")
+    return summaries
+
+
+async def retrieve(question: str, mode: str = "specific") -> list[dict]:
+    hits = await search(question)
+    if mode != "broad" or not _chunks:
+        return hits
+
+    combined = {c["id"]: c for c in hits}
+    for chunk in _even_sample(BROAD_SAMPLE_COUNT):
+        if chunk["id"] not in combined:
+            combined[chunk["id"]] = dict(chunk, pages=[chunk["page_no"]], verbatim=True)
+
+    ordered = sorted(combined.values(), key=lambda c: (c["page_no"], c["id"]))
+    total_chars = sum(len(c["text"]) for c in ordered)
+    print(f"[store] broad retrieval: {len(ordered)} chunks, {total_chars} chars")
+
+    if total_chars <= BROAD_CONTEXT_LIMIT:
+        return ordered
+    return await _summarize_in_groups(ordered)
 
 
 if __name__ == "__main__":
     import asyncio
 
-    if len(sys.argv) != 3:
-        print('usage: python store.py <path.pdf> "query"')
+    if len(sys.argv) < 3:
+        print('usage: python store.py <path.pdf> "query" [specific|broad]')
         sys.exit(1)
 
     async def main():
+        mode = sys.argv[3] if len(sys.argv) > 3 else "specific"
         await load(sys.argv[1])
-        hits = await search(sys.argv[2])
+        hits = await retrieve(sys.argv[2], mode)
         for hit in hits:
-            print(f"score={hit['score']:.4f} page={hit['page_no']}")
+            print(f"pages={hit.get('pages')} verbatim={hit.get('verbatim')}")
             print(hit["text"][:200])
             print("---")
 
-        result = await answer(sys.argv[2], hits)
+        result = await answer(sys.argv[2], hits, mode)
         print("=== answer() ===")
         print(result)
 

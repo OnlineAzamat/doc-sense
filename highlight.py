@@ -47,6 +47,7 @@ def find_rects(pdf_path: str, page_no: int, quote: str, chunk_text: str) -> dict
             print(f"[highlight] page {page_no}: matched via {label} -> {text!r}")
             doc.close()
             return {
+                "ok": True,
                 "rects": _rects_to_lists(found),
                 "page_width": page_width,
                 "page_height": page_height,
@@ -55,6 +56,7 @@ def find_rects(pdf_path: str, page_no: int, quote: str, chunk_text: str) -> dict
     print(f"[highlight] page {page_no}: no match found for any strategy, falling back to full page rect")
     doc.close()
     return {
+        "ok": False,
         "rects": [[0.0, 0.0, page_width, page_height]],
         "page_width": page_width,
         "page_height": page_height,

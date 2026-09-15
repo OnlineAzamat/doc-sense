@@ -8,6 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 import highlight
+import router
 import store
 from llm import answer, summarize_document
 
@@ -79,50 +80,71 @@ def get_pdf():
     return FileResponse(_current_pdf_path, media_type="application/pdf")
 
 
+def _analyzed(chunks: list[dict]) -> dict:
+    pages = set()
+    sections = 0
+    for chunk in chunks:
+        pages.update(chunk.get("pages") or [chunk["page_no"]])
+        # a summarized group stands in for several chunks
+        sections += chunk.get("source_count", 1)
+    return {"pages": len(pages), "sections": sections}
+
+
+def _locate_sources(sources: list[dict]) -> list[dict]:
+    """find_rects every source. Drop the ones that miss, unless nothing else landed."""
+    located, misses = [], []
+
+    for source in sources:
+        page_no = source["page_no"]
+        try:
+            rect_data = highlight.find_rects(
+                _current_pdf_path, page_no, source["quote"], store.page_text(page_no)
+            )
+        except Exception as exc:
+            print(f"[main] highlight failed on page {page_no}: {exc}")
+            continue
+
+        entry = {
+            "page_no": page_no,
+            "quote": source["quote"],
+            "rects": rect_data["rects"],
+            "page_width": rect_data["page_width"],
+            "page_height": rect_data["page_height"],
+        }
+        (located if rect_data["ok"] else misses).append(entry)
+
+    # Never return zero highlights: if every quote missed, keep the first
+    # whole-page fallback rather than showing the answer bare.
+    return located or misses[:1]
+
+
 @app.post("/ask")
 async def ask(payload: AskRequest):
     if _current_pdf_path is None:
         raise HTTPException(status_code=400, detail=GENERIC_ERROR)
 
     try:
-        hits = await store.search(payload.question)
-        result = await answer(payload.question, hits)
+        mode = await router.classify(payload.question)
+        hits = await store.retrieve(payload.question, mode)
+        result = await answer(payload.question, hits, mode)
     except Exception as exc:
         print(f"[main] ask pipeline failed: {exc}")
         raise HTTPException(status_code=500, detail=GENERIC_ERROR)
 
-    top_score = hits[0]["score"] if hits else None
-
-    if not result.get("found"):
-        return {
-            "answer": result.get("answer", ""),
-            "page_no": None,
-            "rects": [],
-            "page_width": None,
-            "page_height": None,
-            "found": False,
-            "top_score": top_score,
-        }
-
-    page_no = result["page_no"]
-    chunk_text = next(
-        (hit["text"] for hit in hits if hit["page_no"] == page_no),
-        hits[0]["text"] if hits else "",
-    )
+    scores = [hit["score"] for hit in hits if isinstance(hit.get("score"), float)]
+    top_score = max(scores) if scores else None
 
     try:
-        rect_data = highlight.find_rects(_current_pdf_path, page_no, result["quote"], chunk_text)
+        sources = _locate_sources(result["sources"])
     except Exception as exc:
-        print(f"[main] highlight failed: {exc}")
+        print(f"[main] highlight pipeline failed: {exc}")
         raise HTTPException(status_code=500, detail=GENERIC_ERROR)
 
     return {
         "answer": result["answer"],
-        "page_no": page_no,
-        "rects": rect_data["rects"],
-        "page_width": rect_data["page_width"],
-        "page_height": rect_data["page_height"],
-        "found": True,
+        "scope": result["scope"],
+        "sources": sources,
+        "analyzed": _analyzed(hits),
         "top_score": top_score,
     }
 
