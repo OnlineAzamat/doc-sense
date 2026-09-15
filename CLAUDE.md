@@ -28,7 +28,8 @@ Priority order:
   group falls back to its own first chunk verbatim — never to another model.
 - Vector search: plain numpy cosine similarity, in memory. No FAISS, no Qdrant,
   no Chroma. The corpus is one document.
-- Frontend: `index.html` + `app.js` + `loader.js` + `style.css`, served by
+- Frontend: `index.html` + `app.js` + `loader.js` + `markdown.js` +
+  `style.css`, served by
   FastAPI. PDF.js from CDN. No React, no build step, no npm.
 
 ## Languages
@@ -42,6 +43,7 @@ docsense/
   main.py            # FastAPI app, routes only
   ingest.py          # PDF -> pages -> chunks with page numbers
   router.py          # question -> "specific" | "broad"
+  cache.py           # disk cache of chunks + vectors, keyed by PDF content hash
   store.py           # embeddings + cosine search + retrieval, in-memory singleton
   llm.py             # Ollama calls (embed + chat)
   prompts.py         # prompt text for llm.py, strings only
@@ -50,9 +52,30 @@ docsense/
     index.html
     app.js
     loader.js        # canvas upload-analysis animation
+    markdown.js      # tiny Markdown -> HTML renderer for answers
     style.css
+  cache/             # gitignored
   uploads/           # gitignored
 ```
+
+## Embedding cache
+Re-uploading a document must not re-run the embedding pass. `cache.py` keeps
+`cache/<sha256>.json` (chunks + meta) and `cache/<sha256>.npy` (the normalized
+vectors) per document. Deliberately not a database — the corpus is one document
+and a miss is always safe.
+
+- The key is the sha256 of the **file bytes**, so a renamed copy still hits.
+- The meta file carries a fingerprint: embed model plus the three `ingest.py`
+  chunking constants. Change any of them and the entry is ignored, never
+  reused — a stale vector would quietly ruin retrieval.
+- Every failure — unreadable JSON, a chunk/vector count mismatch, a failed
+  write — is a cache miss and a one-line console note. It never raises.
+- `store.load` returns True on a hit and replays `meta` + both `progress`
+  events so the loader animation still builds its grid and its cloud; the
+  2.5s stretch covers the rest. `done` carries `cached`, and the stats strip
+  appends "· keshdan".
+- Vectors are written before the meta file, so a half-finished write reads back
+  as a miss rather than as corrupt state.
 
 ## Query routing
 `router.classify(question)` returns `"specific"` or `"broad"`:
@@ -91,6 +114,12 @@ The LLM is forced to return JSON:
   still verbatim.
 - `not_found`: empty `sources`, and the answer states plainly that the document
   does not cover it. Never fall back to general knowledge.
+
+`answer` may carry light Markdown — bold, `-`/`1.` lists, `|` tables, `###`
+headings — when the answer has structure; a short factual answer stays plain
+prose. Markdown never appears in a `quote`: the quote must stay byte-identical
+to the PDF or the highlight misses. `_extract_json` repairs raw line breaks
+inside the JSON string rather than paying for a retry call.
 
 `llm._clean_answer` caps sources at 5, deduplicates them, and drops any source
 whose `page_no` was not in the retrieved context. Never let an invented page
@@ -179,7 +208,10 @@ with no scan line and no particles. The rAF loop pauses while the tab is hidden.
 - While waiting for an answer, show staged status text that advances every
   ~700ms: "Hujjat o'qilmoqda" -> "Tegishli bo'limlar qidirilmoqda" -> "Manba
   tekshirilmoqda" -> "Javob tayyorlanmoqda". Never show a bare spinner.
-- Stream the answer token by token.
+- Stream the answer token by token, re-rendering the Markdown each step
+  (`static/markdown.js`, no library, no CDN) so formatting builds up instead of
+  snapping in at the end. The renderer escapes HTML before anything else.
+  User messages stay plain text.
 - Under each assistant bubble render one chip per source, labelled "N-sahifa".
   More than 3 chips: show 3 and a "+N" expander.
 - Above the chips a scope line:

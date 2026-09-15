@@ -164,7 +164,8 @@ async function uploadFile(file) {
 function renderStats(meta, done) {
   const pages = (meta && meta.pages) || done.pages;
   const chunks = (meta && meta.chunks) || done.chunks;
-  pdfStats.textContent = `${pages} sahifa · ${chunks} bo'lim · ${done.seconds}s`;
+  const suffix = done.cached ? " · keshdan" : "";
+  pdfStats.textContent = `${pages} sahifa · ${chunks} bo'lim · ${done.seconds}s${suffix}`;
 }
 
 function enableChat() {
@@ -434,17 +435,22 @@ function startAskStatus(container) {
 }
 
 function revealText(el, text) {
+  // Typed word by word, re-rendered as Markdown each step so lists, tables and
+  // bold terms build up formatted instead of snapping into place at the end.
   return new Promise((resolve) => {
     const pieces = text.split(/(\s+)/);
+    let shown = "";
     let i = 0;
-    el.textContent = "";
+    el.innerHTML = "";
     const timer = setInterval(() => {
       if (i >= pieces.length) {
         clearInterval(timer);
+        el.innerHTML = renderMarkdown(text);
         resolve();
         return;
       }
-      el.textContent += pieces[i];
+      shown += pieces[i];
+      el.innerHTML = renderMarkdown(shown);
       chatMessages.scrollTop = chatMessages.scrollHeight;
       i += 1;
     }, 35);

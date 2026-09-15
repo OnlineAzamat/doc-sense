@@ -66,6 +66,29 @@ def _build_user_message(question: str, chunks: list[dict], mode: str) -> str:
     return "\n\n".join(parts)
 
 
+_RAW_BREAKS = {"\n": "\\n", "\r": "\\r", "\t": "\\t"}
+
+
+def _escape_raw_newlines(text: str) -> str:
+    """A Markdown answer tempts the model into real line breaks inside the JSON
+    string. Escaping them here saves a whole retry call mid-demo."""
+    out: list[str] = []
+    in_string = False
+    escaped = False
+    for ch in text:
+        if in_string and not escaped and ch in _RAW_BREAKS:
+            out.append(_RAW_BREAKS[ch])
+            continue
+        if escaped:
+            escaped = False
+        elif ch == "\\":
+            escaped = True
+        elif ch == '"':
+            in_string = not in_string
+        out.append(ch)
+    return "".join(out)
+
+
 def _extract_json(raw: str) -> dict | None:
     text = raw.strip()
     if text.startswith("```"):
@@ -78,10 +101,14 @@ def _extract_json(raw: str) -> dict | None:
     if start == -1 or end == -1 or end < start:
         return None
 
+    candidate = text[start : end + 1]
     try:
-        data = json.loads(text[start : end + 1])
+        data = json.loads(candidate)
     except json.JSONDecodeError:
-        return None
+        try:
+            data = json.loads(_escape_raw_newlines(candidate))
+        except json.JSONDecodeError:
+            return None
 
     return data if isinstance(data, dict) else None
 

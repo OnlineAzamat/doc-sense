@@ -18,7 +18,17 @@ SYSTEM_PROMPT = (
     "sources from DIFFERENT pages spread across the document.\n"
     'scope "not_found": the excerpts do not contain the answer. Leave '
     '"sources" empty and let "answer" state plainly that the document does not '
-    "cover it. Never fall back to general knowledge."
+    "cover it. Never fall back to general knowledge.\n\n"
+    'The "answer" string itself may use light Markdown when structure makes it '
+    "easier to read: **bold** for key terms, a `-` or `1.` list for steps, "
+    "options or enumerations, a `|` table for comparisons, `###` for a short "
+    "heading when the answer has several parts. A short factual answer stays a "
+    "plain sentence or two — do not decorate it. Write the line breaks inside "
+    "the string as \\n escapes so the JSON stays valid, and never wrap the "
+    "answer itself in a code fence.\n"
+    'Markdown belongs only in "answer". Every "quote" stays plain text, exactly '
+    "as it appears in the excerpt — no asterisks, no dashes, no formatting of "
+    "any kind added to it."
 )
 
 MODE_HINT = {

@@ -53,14 +53,21 @@ async def _upload_stream(dest_path: str, safe_name: str):
     async def run() -> None:
         global _current_pdf_path
         try:
-            await store.load(dest_path, emit)
+            cached = await store.load(dest_path, emit)
         except Exception as exc:
             print(f"[main] failed to load PDF {safe_name}: {exc}")
             emit("error", {"message": GENERIC_ERROR})
             return
         _current_pdf_path = dest_path
         counts = store.stats()
-        emit("done", {**counts, "seconds": round(time.perf_counter() - started, 1)})
+        emit(
+            "done",
+            {
+                **counts,
+                "seconds": round(time.perf_counter() - started, 1),
+                "cached": cached,
+            },
+        )
 
     task = asyncio.create_task(run())
     try:
