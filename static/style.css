@@ -528,3 +528,115 @@ body {
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* Markdown inside an assistant answer. The bubble is pre-wrap for plain text;
+   rendered blocks bring their own spacing, so they opt out of it. */
+.answer-text {
+  white-space: normal;
+}
+
+.answer-text > *:first-child {
+  margin-top: 0;
+}
+
+.answer-text > *:last-child {
+  margin-bottom: 0;
+}
+
+.answer-text p {
+  margin: 0 0 8px;
+}
+
+.answer-text h3,
+.answer-text h4,
+.answer-text h5,
+.answer-text h6 {
+  margin: 12px 0 6px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  letter-spacing: 0.2px;
+}
+
+.answer-text ul,
+.answer-text ol {
+  margin: 0 0 8px;
+  padding-left: 20px;
+}
+
+.answer-text li {
+  margin-bottom: 4px;
+}
+
+.answer-text li::marker {
+  color: #4f8cff;
+}
+
+.answer-text strong {
+  color: #fff;
+  font-weight: 600;
+}
+
+.answer-text em {
+  color: #c9cdd4;
+}
+
+.answer-text code {
+  background: #1b2130;
+  border: 1px solid #232a38;
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-size: 12.5px;
+  font-family: "SFMono-Regular", Consolas, monospace;
+}
+
+.answer-text pre {
+  background: #11161f;
+  border: 1px solid #232a38;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin: 0 0 8px;
+  overflow-x: auto;
+}
+
+.answer-text pre code {
+  background: none;
+  border: none;
+  padding: 0;
+}
+
+.answer-text blockquote {
+  margin: 0 0 8px;
+  padding: 2px 0 2px 10px;
+  border-left: 2px solid #4f8cff;
+  color: #c9cdd4;
+}
+
+.answer-text hr {
+  border: none;
+  border-top: 1px solid #232a38;
+  margin: 10px 0;
+}
+
+.answer-text table {
+  width: 100%;
+  margin: 0 0 8px;
+  border-collapse: collapse;
+  font-size: 13px;
+  display: block;
+  overflow-x: auto;
+}
+
+.answer-text th,
+.answer-text td {
+  border: 1px solid #232a38;
+  padding: 6px 8px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.answer-text th {
+  background: #1b2130;
+  color: #fff;
+  font-weight: 600;
+}

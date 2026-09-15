@@ -6,8 +6,9 @@ import sys
 import fitz
 import numpy as np
 
-from ingest import ingest_pdf
-from llm import answer, embed, summarize_group
+import cache
+from ingest import MIN_CHUNK_CHARS, OVERLAP_CHARS, TARGET_CHARS, ingest_pdf
+from llm import EMBED_MODEL, answer, embed, summarize_group
 
 BROAD_SAMPLE_COUNT = 16
 BROAD_CONTEXT_LIMIT = 12000
@@ -25,13 +26,45 @@ def _l2_normalize(matrix: np.ndarray) -> np.ndarray:
     return matrix / norms
 
 
-async def load(pdf_path: str, on_event=None) -> None:
-    """on_event(name, data) reports "meta" and "progress" as the load runs."""
+def _fingerprint() -> dict:
+    """Everything that would make a cached vector wrong if it changed."""
+    return {
+        "embed_model": EMBED_MODEL,
+        "target_chars": TARGET_CHARS,
+        "overlap_chars": OVERLAP_CHARS,
+        "min_chunk_chars": MIN_CHUNK_CHARS,
+    }
+
+
+def _apply(chunks: list[dict], vectors: np.ndarray, pdf_path: str, page_count: int) -> None:
     global _chunks, _vectors, _pdf_path, _page_count
+    _chunks = chunks
+    _vectors = vectors
+    _pdf_path = pdf_path
+    _page_count = page_count
+
+
+async def load(pdf_path: str, on_event=None) -> bool:
+    """on_event(name, data) reports "meta" and "progress" as the load runs.
+
+    Returns True when the chunks and vectors came from the disk cache.
+    """
 
     def emit(name: str, data: dict) -> None:
         if on_event:
             on_event(name, data)
+
+    key = cache.key_for(pdf_path)
+    hit = cache.load(key, _fingerprint())
+    if hit is not None:
+        print(f"[store] cache hit {key[:8]}: {len(hit['chunks'])} chunks, embedding skipped")
+        _apply(hit["chunks"], hit["vectors"], pdf_path, hit["page_count"])
+        # Replay both phases so the loader still builds its grid and its cloud —
+        # the animation stretches itself to 2.5s from here.
+        emit("meta", {"pages": _page_count, "chunks": len(_chunks)})
+        emit("progress", {"stage": "reading", "done": _page_count, "total": _page_count})
+        emit("progress", {"stage": "embedding", "done": len(_chunks), "total": len(_chunks)})
+        return True
 
     with fitz.open(pdf_path) as doc:
         page_count = doc.page_count
@@ -52,10 +85,9 @@ async def load(pdf_path: str, on_event=None) -> None:
 
     matrix = _l2_normalize(np.array(raw_vectors, dtype=np.float32))
 
-    _chunks = chunks
-    _vectors = matrix
-    _pdf_path = pdf_path
-    _page_count = page_count
+    _apply(chunks, matrix, pdf_path, page_count)
+    cache.save(key, _fingerprint(), chunks, matrix, page_count)
+    return False
 
 
 def stats() -> dict:
