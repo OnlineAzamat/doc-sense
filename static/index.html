@@ -29,11 +29,33 @@
         <div class="pdf-canvas-wrap">
           <canvas id="pdf-canvas"></canvas>
         </div>
+
+        <div class="doc-summary" id="doc-summary" hidden>
+          <button class="doc-summary-header" id="doc-summary-toggle" type="button">
+            <span>Hujjat tahlili</span>
+            <span class="doc-summary-chevron">&rsaquo;</span>
+          </button>
+          <div class="doc-summary-body" id="doc-summary-body" hidden>
+            <h3 id="doc-summary-title"></h3>
+            <p id="doc-summary-text"></p>
+            <div class="doc-summary-topics" id="doc-summary-topics"></div>
+          </div>
+        </div>
       </div>
     </section>
 
     <section class="panel chat-panel">
-      <div class="chat-messages" id="chat-messages"></div>
+      <div class="chat-messages" id="chat-messages">
+        <div class="chat-empty" id="chat-empty">
+          <div class="chat-empty-mark">DocSense</div>
+          <p>Hujjatingiz haqida savol bering</p>
+          <div class="suggested-chips" id="suggested-chips">
+            <button class="suggested-chip" type="button">Bu hujjat nima haqida?</button>
+            <button class="suggested-chip" type="button">Asosiy g'oyalarni sanab bering</button>
+            <button class="suggested-chip" type="button">Qisqacha xulosa bering</button>
+          </div>
+        </div>
+      </div>
       <div class="chat-input-row">
         <input
           type="text"

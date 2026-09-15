@@ -42,6 +42,17 @@ def stats() -> dict:
     return {"pages": _page_count, "chunks": len(_chunks)}
 
 
+def sample_for_summary() -> list[dict]:
+    first = _chunks[:10]
+    rest = _chunks[10:]
+    if not rest:
+        return first
+
+    step = max(len(rest) // 5, 1)
+    sampled = rest[::step][:5]
+    return first + sampled
+
+
 async def search(query: str, k: int = 4) -> list[dict]:
     if _vectors is None or not _chunks:
         return []

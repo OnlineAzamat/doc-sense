@@ -31,6 +31,17 @@ _STRICT_REMINDER = (
     "object described above — no markdown fences, no extra text."
 )
 
+_SUMMARY_SYSTEM_PROMPT = (
+    "You are DocSense, summarizing an uploaded document from sampled excerpts "
+    "of it. Answer in the same language as the excerpts.\n\n"
+    "Respond with ONLY a JSON object. No markdown code fences, no preamble, "
+    "no explanation before or after it. It must have exactly these keys:\n"
+    '{"title": str, "summary": str, "topics": [str, str, str]}\n\n'
+    '"title" is a short document title, a few words. "summary" is 3-4 '
+    'sentences describing what the document covers. "topics" is exactly 3 '
+    "short topic labels, a few words each."
+)
+
 
 async def embed(texts: list[str]) -> list[list[float]]:
     vectors: list[list[float]] = []
@@ -60,7 +71,7 @@ def _build_user_message(question: str, chunks: list[dict]) -> str:
     return f"Excerpts:\n{excerpts}\n\nQuestion: {question}"
 
 
-def _parse_answer(raw: str) -> dict | None:
+def _extract_json(raw: str) -> dict | None:
     text = raw.strip()
     if text.startswith("```"):
         text = text.strip("`")
@@ -77,9 +88,20 @@ def _parse_answer(raw: str) -> dict | None:
     except json.JSONDecodeError:
         return None
 
-    if not isinstance(data, dict) or not {"answer", "page_no", "quote", "found"} <= data.keys():
-        return None
+    return data if isinstance(data, dict) else None
 
+
+def _parse_answer(raw: str) -> dict | None:
+    data = _extract_json(raw)
+    if data is None or not {"answer", "page_no", "quote", "found"} <= data.keys():
+        return None
+    return data
+
+
+def _parse_summary(raw: str) -> dict | None:
+    data = _extract_json(raw)
+    if data is None or not {"title", "summary", "topics"} <= data.keys():
+        return None
     return data
 
 
@@ -115,3 +137,29 @@ async def answer(question: str, chunks: list[dict]) -> dict:
         return parsed_retry
 
     return {"found": False}
+
+
+def _build_summary_message(chunks: list[dict]) -> str:
+    excerpts = "\n\n".join(f"[{i + 1}] {chunk['text']}" for i, chunk in enumerate(chunks))
+    return f"Excerpts:\n{excerpts}"
+
+
+async def summarize_document(chunks: list[dict]) -> dict:
+    messages = [
+        {"role": "system", "content": _SUMMARY_SYSTEM_PROMPT},
+        {"role": "user", "content": _build_summary_message(chunks)},
+    ]
+
+    raw = await _chat(messages)
+    parsed = _parse_summary(raw)
+    if parsed is not None:
+        return parsed
+
+    messages.append({"role": "assistant", "content": raw})
+    messages.append({"role": "user", "content": _STRICT_REMINDER})
+    raw_retry = await _chat(messages)
+    parsed_retry = _parse_summary(raw_retry)
+    if parsed_retry is not None:
+        return parsed_retry
+
+    return {"title": "", "summary": "", "topics": []}

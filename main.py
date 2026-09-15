@@ -9,16 +9,18 @@ from pydantic import BaseModel
 
 import highlight
 import store
-from llm import answer
+from llm import answer, summarize_document
 
 UPLOAD_DIR = "uploads"
 GENERIC_ERROR = "Qayta urinib ko'ring."
+EMPTY_SUMMARY = {"title": "", "summary": "", "topics": []}
 
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 app = FastAPI()
 
 _current_pdf_path: str | None = None
+_summary_cache: dict[str, dict] = {}
 
 
 class AskRequest(BaseModel):
@@ -51,7 +53,23 @@ async def upload(file: UploadFile):
 
     _current_pdf_path = dest_path
     counts = store.stats()
-    return {"filename": safe_name, "pages": counts["pages"], "chunks": counts["chunks"]}
+
+    if safe_name in _summary_cache:
+        summary = _summary_cache[safe_name]
+    else:
+        try:
+            summary = await summarize_document(store.sample_for_summary())
+        except Exception as exc:
+            print(f"[main] summary generation failed for {safe_name}: {exc}")
+            summary = EMPTY_SUMMARY
+        _summary_cache[safe_name] = summary
+
+    return {
+        "filename": safe_name,
+        "pages": counts["pages"],
+        "chunks": counts["chunks"],
+        "summary": summary,
+    }
 
 
 @app.get("/pdf")
@@ -73,6 +91,8 @@ async def ask(payload: AskRequest):
         print(f"[main] ask pipeline failed: {exc}")
         raise HTTPException(status_code=500, detail=GENERIC_ERROR)
 
+    top_score = hits[0]["score"] if hits else None
+
     if not result.get("found"):
         return {
             "answer": result.get("answer", ""),
@@ -81,6 +101,7 @@ async def ask(payload: AskRequest):
             "page_width": None,
             "page_height": None,
             "found": False,
+            "top_score": top_score,
         }
 
     page_no = result["page_no"]
@@ -102,6 +123,7 @@ async def ask(payload: AskRequest):
         "page_width": rect_data["page_width"],
         "page_height": rect_data["page_height"],
         "found": True,
+        "top_score": top_score,
     }
 
 
