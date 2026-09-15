@@ -75,7 +75,8 @@ def _chunk_pieces(pieces: list[str], target: int, overlap: int) -> list[str]:
     return chunks
 
 
-def ingest_pdf(path: str) -> list[dict]:
+def ingest_pdf(path: str, on_page=None) -> list[dict]:
+    """on_page(done, total) fires after each page is parsed, for progress reporting."""
     doc = fitz.open(path)
     chunks = []
     next_id = 0
@@ -93,6 +94,9 @@ def ingest_pdf(path: str) -> list[dict]:
                 continue
             chunks.append({"id": next_id, "page_no": page_no, "text": chunk_text})
             next_id += 1
+
+        if on_page:
+            on_page(page_no, doc.page_count)
 
     doc.close()
     return chunks

@@ -1,5 +1,6 @@
 """In-memory chunk + embedding store, singleton per process."""
 
+import asyncio
 import sys
 
 import fitz
@@ -24,17 +25,32 @@ def _l2_normalize(matrix: np.ndarray) -> np.ndarray:
     return matrix / norms
 
 
-async def load(pdf_path: str) -> None:
+async def load(pdf_path: str, on_event=None) -> None:
+    """on_event(name, data) reports "meta" and "progress" as the load runs."""
     global _chunks, _vectors, _pdf_path, _page_count
 
-    chunks = ingest_pdf(pdf_path)
-    texts = [c["text"] for c in chunks]
-    raw_vectors = await embed(texts)
-
-    matrix = _l2_normalize(np.array(raw_vectors, dtype=np.float32))
+    def emit(name: str, data: dict) -> None:
+        if on_event:
+            on_event(name, data)
 
     with fitz.open(pdf_path) as doc:
         page_count = doc.page_count
+
+    # Parsing is sync and CPU-bound; off the event loop so progress really streams.
+    chunks = await asyncio.to_thread(
+        ingest_pdf,
+        pdf_path,
+        lambda done, total: emit("progress", {"stage": "reading", "done": done, "total": total}),
+    )
+    emit("meta", {"pages": page_count, "chunks": len(chunks)})
+
+    texts = [c["text"] for c in chunks]
+    raw_vectors = await embed(
+        texts,
+        lambda done, total: emit("progress", {"stage": "embedding", "done": done, "total": total}),
+    )
+
+    matrix = _l2_normalize(np.array(raw_vectors, dtype=np.float32))
 
     _chunks = chunks
     _vectors = matrix
@@ -144,8 +160,6 @@ async def retrieve(question: str, mode: str = "specific") -> list[dict]:
 
 
 if __name__ == "__main__":
-    import asyncio
-
     if len(sys.argv) < 3:
         print('usage: python store.py <path.pdf> "query" [specific|broad]')
         sys.exit(1)

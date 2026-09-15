@@ -1,9 +1,12 @@
 """FastAPI app, routes only."""
 
+import asyncio
+import json
 import os
+import time
 
 from fastapi import FastAPI, HTTPException, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -33,10 +36,46 @@ def health():
     return {"ok": True}
 
 
+def _sse(event: str, data: dict) -> str:
+    return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
+
+
+async def _upload_stream(dest_path: str, safe_name: str):
+    """Run the load in the background, relaying its progress as SSE."""
+    queue: asyncio.Queue = asyncio.Queue()
+    loop = asyncio.get_running_loop()
+    started = time.perf_counter()
+
+    def emit(event: str, data: dict) -> None:
+        # Called from the ingest worker thread as well as the event loop.
+        loop.call_soon_threadsafe(queue.put_nowait, (event, data))
+
+    async def run() -> None:
+        global _current_pdf_path
+        try:
+            await store.load(dest_path, emit)
+        except Exception as exc:
+            print(f"[main] failed to load PDF {safe_name}: {exc}")
+            emit("error", {"message": GENERIC_ERROR})
+            return
+        _current_pdf_path = dest_path
+        counts = store.stats()
+        emit("done", {**counts, "seconds": round(time.perf_counter() - started, 1)})
+
+    task = asyncio.create_task(run())
+    try:
+        while True:
+            event, data = await queue.get()
+            yield _sse(event, data)
+            if event in ("done", "error"):
+                return
+    finally:
+        if not task.done():
+            task.cancel()
+
+
 @app.post("/upload")
 async def upload(file: UploadFile):
-    global _current_pdf_path
-
     if not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail=GENERIC_ERROR)
 
@@ -46,31 +85,28 @@ async def upload(file: UploadFile):
     with open(dest_path, "wb") as f:
         f.write(contents)
 
-    try:
-        await store.load(dest_path)
-    except Exception as exc:
-        print(f"[main] failed to load PDF {safe_name}: {exc}")
-        raise HTTPException(status_code=500, detail=GENERIC_ERROR)
+    return StreamingResponse(
+        _upload_stream(dest_path, safe_name),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
-    _current_pdf_path = dest_path
-    counts = store.stats()
 
-    if safe_name in _summary_cache:
-        summary = _summary_cache[safe_name]
-    else:
+@app.get("/summary")
+async def get_summary():
+    """Fetched after the upload stream closes, so the loader never waits on the LLM."""
+    if _current_pdf_path is None:
+        raise HTTPException(status_code=400, detail=GENERIC_ERROR)
+
+    safe_name = os.path.basename(_current_pdf_path)
+    if safe_name not in _summary_cache:
         try:
-            summary = await summarize_document(store.sample_for_summary())
+            _summary_cache[safe_name] = await summarize_document(store.sample_for_summary())
         except Exception as exc:
             print(f"[main] summary generation failed for {safe_name}: {exc}")
-            summary = EMPTY_SUMMARY
-        _summary_cache[safe_name] = summary
+            _summary_cache[safe_name] = EMPTY_SUMMARY
 
-    return {
-        "filename": safe_name,
-        "pages": counts["pages"],
-        "chunks": counts["chunks"],
-        "summary": summary,
-    }
+    return _summary_cache[safe_name]
 
 
 @app.get("/pdf")

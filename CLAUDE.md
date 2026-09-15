@@ -28,8 +28,8 @@ Priority order:
   group falls back to its own first chunk verbatim — never to another model.
 - Vector search: plain numpy cosine similarity, in memory. No FAISS, no Qdrant,
   no Chroma. The corpus is one document.
-- Frontend: single `index.html` + `app.js` + `style.css`, served by FastAPI.
-  PDF.js from CDN. No React, no build step, no npm.
+- Frontend: `index.html` + `app.js` + `loader.js` + `style.css`, served by
+  FastAPI. PDF.js from CDN. No React, no build step, no npm.
 
 ## Languages
 Documents and questions will be in Uzbek and Russian, occasionally English.
@@ -49,6 +49,7 @@ docsense/
   static/
     index.html
     app.js
+    loader.js        # canvas upload-analysis animation
     style.css
   uploads/           # gitignored
 ```
@@ -114,14 +115,70 @@ A source whose quote could not be located is dropped silently and the others are
 kept — unless every source missed, in which case the first fallback is kept, so
 an answer is never shown with no highlight at all.
 
+## Upload progress
+`/upload` is a POST that replies with `text/event-stream`, not JSON. The load
+runs as a background task and relays progress through an `asyncio.Queue`:
+
+| event      | payload                                                |
+| ---------- | ------------------------------------------------------ |
+| `meta`     | `{pages, chunks}` — right after ingest                  |
+| `progress` | `{stage: "reading"｜"embedding", done, total}`          |
+| `done`     | `{pages, chunks, seconds}`                              |
+| `error`    | `{message}` — always the generic line, never the detail |
+
+`ingest_pdf(path, on_page)` and `embed(texts, on_batch)` take progress callbacks;
+their logic is otherwise untouched. Parsing runs via `asyncio.to_thread` so the
+reading events actually stream instead of arriving in one burst at the end, and
+`emit` goes through `loop.call_soon_threadsafe`.
+
+The document summary is **not** in this stream — it is a separate `GET /summary`,
+fetched after the stream closes, so the animation never waits on the LLM.
+
+EventSource is GET-only, so the frontend reads the stream with `fetch` and parses
+SSE by hand in `readEvents()`.
+
+## The upload animation — read this before touching it
+`static/loader.js` owns it. One `<canvas>`, devicePixelRatio-aware, everything
+drawn in canvas 2D. No DOM nodes per page, no libraries.
+
+Behind everything, page 1 is rendered with PDF.js into an offscreen canvas and
+drawn at 6% opacity with a 3px blur. It is decorative — if it fails, skip it.
+
+- **Phase 1 `reading`** — one cell per page, capped at 400 and mapped
+  proportionally beyond that, laid out to fill the panel with 8px gaps.
+  Unprocessed cells are a 1px `rgba(79,140,255,0.18)` border. A scan line with a
+  soft gradient glow sits at the current progress ratio; cells it passes fill
+  with the accent, flashing to alpha 1.0 and easing back to 0.5 over 250ms.
+  Caption: `Sahifalar o'qilmoqda · {done}/{total}`
+- **Phase 2 `embedding`** — cells detach into particles that ease toward a loose
+  radial cloud with slight drift, linking to nearby particles (max ~2 links each
+  so it stays readable). Particles activate as batches complete.
+  Caption: `Ma'no vektorlariga o'tkazilmoqda · {done}/{total}`
+- **Phase 3 `done`** — the cloud pulls into a tight cluster, then fades over
+  500ms while the PDF viewer fades in. Elapsed seconds land in the stats strip.
+
+Progress smoothing is what makes it feel real, so do not simplify it away:
+- A displayed value eases toward the reported one at ~0.08 per frame and **never
+  decreases**, even if the server reports a lower number.
+- With no event for 400ms it keeps creeping forward slowly, clamped at 95% until
+  `done` arrives.
+- If the whole upload takes less than 2.5s the animation is stretched to 2.5s so
+  all three phases stay legible. A slower upload is never padded.
+
+Resilience: on `error` the animation stops, the canvas content fades and one line
+remains — "Qayta urinib ko'ring.". `prefers-reduced-motion` gives a static grid
+with no scan line and no particles. The rAF loop pauses while the tab is hidden.
+
 ## UI rules
 - Dark theme. Background `#0B0E14`, panels `#151A23`, accent `#4F8CFF`,
   highlight overlay `rgba(255, 214, 0, 0.35)`.
 - Two-column layout: PDF viewer left (60%), chat right (40%).
 - Product name "DocSense" top-left, version badge `v0.9 beta` next to it.
-- While waiting for the model, show staged status text that advances every
-  ~600ms: "Hujjat indekslanmoqda" -> "Tegishli bo'limlar qidirilmoqda" ->
-  "Javob tayyorlanmoqda". Never show a bare spinner.
+- On upload, the left panel runs the canvas animation above. Never a bare
+  spinner, and never a static placeholder caption.
+- While waiting for an answer, show staged status text that advances every
+  ~700ms: "Hujjat o'qilmoqda" -> "Tegishli bo'limlar qidirilmoqda" -> "Manba
+  tekshirilmoqda" -> "Javob tayyorlanmoqda". Never show a bare spinner.
 - Stream the answer token by token.
 - Under each assistant bubble render one chip per source, labelled "N-sahifa".
   More than 3 chips: show 3 and a "+N" expander.

@@ -1,12 +1,6 @@
 pdfjsLib.GlobalWorkerOptions.workerSrc =
   "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
 
-const UPLOAD_STAGES = [
-  "Hujjat indekslanmoqda",
-  "Tegishli bo'limlar qidirilmoqda",
-  "Javob tayyorlanmoqda",
-];
-
 const ASK_STAGES = [
   "Hujjat o'qilmoqda",
   "Tegishli bo'limlar qidirilmoqda",
@@ -25,6 +19,9 @@ const dropzoneText = document.getElementById("dropzone-text");
 const fileInput = document.getElementById("file-input");
 const pdfViewer = document.getElementById("pdf-viewer");
 const pdfCanvas = document.getElementById("pdf-canvas");
+const pdfStats = document.getElementById("pdf-stats");
+const loaderStage = document.getElementById("loader-stage");
+const loaderCanvas = document.getElementById("loader-canvas");
 const prevPageBtn = document.getElementById("prev-page");
 const nextPageBtn = document.getElementById("next-page");
 const pageIndicator = document.getElementById("page-indicator");
@@ -56,14 +53,33 @@ function formatTime(date) {
   return `${h}:${m}`;
 }
 
-function startStagedStatus(el) {
-  let stageIndex = 0;
-  el.textContent = UPLOAD_STAGES[0];
-  const timer = setInterval(() => {
-    stageIndex = (stageIndex + 1) % UPLOAD_STAGES.length;
-    el.textContent = UPLOAD_STAGES[stageIndex];
-  }, 600);
-  return () => clearInterval(timer);
+// Minimal SSE parser — EventSource is GET-only, and /upload is a POST.
+async function* readEvents(response) {
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) return;
+    buffer += decoder.decode(value, { stream: true });
+
+    let split;
+    while ((split = buffer.indexOf("\n\n")) !== -1) {
+      const block = buffer.slice(0, split);
+      buffer = buffer.slice(split + 2);
+
+      let name = "message";
+      let payload = "";
+      for (const line of block.split("\n")) {
+        if (line.startsWith("event:")) name = line.slice(6).trim();
+        else if (line.startsWith("data:")) payload += line.slice(5).trim();
+      }
+      if (payload) {
+        yield { name, data: JSON.parse(payload) };
+      }
+    }
+  }
 }
 
 function showDropzoneError() {
@@ -75,13 +91,26 @@ function showDropzoneError() {
   }, 2500);
 }
 
+async function loadSummary() {
+  try {
+    const response = await fetch("/summary");
+    if (!response.ok) throw new Error("summary failed");
+    renderSummary(await response.json());
+  } catch (err) {
+    renderSummary(null); // the panel just stays hidden
+  }
+}
+
 async function uploadFile(file) {
   if (!file || !file.name.toLowerCase().endsWith(".pdf")) {
     showDropzoneError();
     return;
   }
 
-  const stopStatus = startStagedStatus(dropzoneText);
+  dropzone.hidden = true;
+  loaderStage.hidden = false;
+  const loader = DocSenseLoader.create(loaderCanvas, file);
+  let meta = null;
 
   try {
     const formData = new FormData();
@@ -91,18 +120,51 @@ async function uploadFile(file) {
       throw new Error("upload failed");
     }
 
-    const data = await response.json();
-    stopStatus();
-    dropzone.hidden = true;
-    pdfViewer.hidden = false;
+    let finalEvent = null;
+    for await (const { name, data } of readEvents(response)) {
+      if (name === "meta") meta = data;
+      else if (name === "progress") loader.progress(data);
+      else if (name === "done" || name === "error") {
+        finalEvent = { name, data };
+        break;
+      }
+    }
+
+    if (!finalEvent || finalEvent.name !== "done") {
+      throw new Error("upload failed");
+    }
+
+    // Render the viewer behind the still-running animation so it is laid out
+    // and ready; then the two cross-fade.
     activeHighlight = null;
+    pdfViewer.hidden = false;
+    pdfViewer.style.opacity = "0";
     await renderPdf("/pdf");
-    renderSummary(data.summary);
+    renderStats(meta, finalEvent.data);
+
+    await loader.finish(() => {
+      pdfViewer.style.opacity = "1";
+    });
+    loader.destroy();
+    loaderStage.hidden = true;
     enableChat();
+    loadSummary();
   } catch (err) {
-    stopStatus();
-    showDropzoneError();
+    loader.fail();
+    pdfViewer.hidden = true;
+    setTimeout(() => {
+      loader.destroy();
+      loaderStage.hidden = true;
+      dropzone.hidden = false;
+      showDropzoneError();
+    }, 1600);
   }
+}
+
+function renderStats(meta, done) {
+  const pages = (meta && meta.pages) || done.pages;
+  const chunks = (meta && meta.chunks) || done.chunks;
+  pdfStats.textContent = `${pages} sahifa · ${chunks} bo'lim · ${done.seconds}s`;
 }
 
 function enableChat() {

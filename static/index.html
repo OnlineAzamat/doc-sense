@@ -20,11 +20,16 @@
         <input type="file" id="file-input" accept="application/pdf" hidden />
       </div>
 
+      <div class="loader-stage" id="loader-stage" hidden>
+        <canvas id="loader-canvas"></canvas>
+      </div>
+
       <div class="pdf-viewer" id="pdf-viewer" hidden>
         <div class="pdf-toolbar">
           <button id="prev-page" class="pdf-nav-btn">&lsaquo;</button>
           <span id="page-indicator" class="page-indicator">1 / 1</span>
           <button id="next-page" class="pdf-nav-btn">&rsaquo;</button>
+          <span class="pdf-stats" id="pdf-stats"></span>
         </div>
         <div class="pdf-canvas-wrap">
           <canvas id="pdf-canvas"></canvas>
@@ -69,6 +74,7 @@
     </section>
   </main>
 
+  <script src="loader.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

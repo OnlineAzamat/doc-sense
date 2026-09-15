@@ -16,7 +16,8 @@ MAX_SOURCES = 5
 _client = httpx.AsyncClient(timeout=120.0)
 
 
-async def embed(texts: list[str]) -> list[list[float]]:
+async def embed(texts: list[str], on_batch=None) -> list[list[float]]:
+    """on_batch(done, total) fires after each batch, for progress reporting."""
     vectors: list[list[float]] = []
 
     for i in range(0, len(texts), EMBED_BATCH_SIZE):
@@ -32,6 +33,8 @@ async def embed(texts: list[str]) -> list[list[float]]:
             raise
 
         vectors.extend(response.json()["embeddings"])
+        if on_batch:
+            on_batch(len(vectors), len(texts))
 
     return vectors
 

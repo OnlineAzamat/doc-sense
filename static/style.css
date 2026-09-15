@@ -50,6 +50,23 @@ body {
 .pdf-panel {
   width: 60%;
   border-right: 1px solid #232a38;
+  position: relative;
+}
+
+.loader-stage {
+  position: absolute;
+  inset: 16px;
+  z-index: 2;
+}
+
+.loader-stage[hidden] {
+  display: none;
+}
+
+#loader-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
 .chat-panel {
@@ -89,6 +106,7 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 0;
+  transition: opacity 500ms ease;
 }
 
 .pdf-viewer[hidden] {
@@ -128,6 +146,12 @@ body {
   color: #9aa4b2;
   min-width: 56px;
   text-align: center;
+}
+
+.pdf-stats {
+  font-size: 11px;
+  color: #6b7280;
+  margin-left: 6px;
 }
 
 .pdf-canvas-wrap {
