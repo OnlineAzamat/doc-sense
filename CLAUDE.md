@@ -236,7 +236,11 @@ a "7-sahifa" chip pops in and pulses that same highlight.
   translucent over that aura, so a solid `#151A23` fill is now wrong — use
   `rgba(21, 26, 35, ~0.7)` with a blur. The PDF page itself stays opaque.
 - Two-column layout: PDF viewer left (60%), chat right (40%).
-- Product name "DocSense" top-left, version badge `v0.9 beta` next to it.
+- Product name "DocSense" top-left, version badge `v0.9 beta` next to it. Left
+  of the name sits the brand mark: an inline SVG of a document whose contents
+  are a small node graph, on a blue-to-violet tile with a breathing glow and a
+  cyan spark dot. Same gradient as the aura and as the wordmark, so the mark,
+  the name and the background read as one system. No image file, no icon font.
 - On upload, the left panel runs the canvas animation above. Never a bare
   spinner, and never a static placeholder caption.
 - The question input is sized for a projector, not a laptop: 17px text, 15px
