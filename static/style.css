@@ -12,19 +12,171 @@ body {
   font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
+/* Two slow-drifting aura layers behind everything. They are the only place the
+   palette leaves the accent blue, and they stay under 0.16 alpha so panel text
+   never loses contrast. Fixed, so scrolling the PDF does not move them. */
+body::before,
+body::after {
+  content: "";
+  position: fixed;
+  inset: -20%;
+  z-index: 0;
+  pointer-events: none;
+  will-change: transform;
+}
+
+body::before {
+  background:
+    radial-gradient(
+      44% 38% at 14% 2%,
+      rgba(79, 140, 255, 0.16),
+      transparent 68%
+    ),
+    radial-gradient(
+      40% 34% at 88% 6%,
+      rgba(139, 92, 246, 0.13),
+      transparent 66%
+    );
+  animation: aura-drift-a 34s ease-in-out infinite;
+}
+
+body::after {
+  background:
+    radial-gradient(
+      46% 40% at 78% 96%,
+      rgba(34, 211, 238, 0.09),
+      transparent 66%
+    ),
+    radial-gradient(
+      38% 36% at 24% 88%,
+      rgba(79, 140, 255, 0.08),
+      transparent 68%
+    );
+  animation: aura-drift-b 46s ease-in-out infinite;
+}
+
+@keyframes aura-drift-a {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(2.5%, 1.5%, 0) scale(1.08);
+  }
+}
+
+@keyframes aura-drift-b {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1.04);
+  }
+  50% {
+    transform: translate3d(-3%, -2%, 0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body::before,
+  body::after {
+    animation: none;
+  }
+}
+
 .topbar {
+  position: relative;
+  z-index: 1;
   display: flex;
-  align-items: baseline;
-  gap: 10px;
-  padding: 14px 20px;
-  background: #151a23;
+  align-items: center;
+  gap: 9px;
+  padding: 13px 20px;
+  background: rgba(21, 26, 35, 0.72);
+  backdrop-filter: blur(14px);
   border-bottom: 1px solid #232a38;
+}
+
+/* The accent hairline that ties the bar to the aura behind it. */
+.topbar::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(79, 140, 255, 0.55),
+    rgba(139, 92, 246, 0.45),
+    transparent 85%
+  );
+}
+
+/* A document whose contents are a small graph — the two things the product
+   does, in one mark. Its gradient is the aura's, so the page reads as one
+   system. */
+.brand-mark {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  background: linear-gradient(135deg, #4f8cff, #8b5cf6);
+  box-shadow: 0 4px 16px rgba(79, 140, 255, 0.35);
+  animation: brand-breathe 4.5s ease-in-out infinite;
+}
+
+.brand-spark {
+  position: absolute;
+  top: -1px;
+  right: -1px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #22d3ee;
+  border: 2px solid #151a23;
+  animation: brand-spark 2.4s ease-in-out infinite;
+}
+
+@keyframes brand-breathe {
+  0%,
+  100% {
+    box-shadow: 0 4px 16px rgba(79, 140, 255, 0.3);
+  }
+  50% {
+    box-shadow: 0 4px 22px rgba(139, 92, 246, 0.5);
+  }
+}
+
+@keyframes brand-spark {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(0.85);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brand-mark,
+  .brand-spark {
+    animation: none;
+  }
 }
 
 .brand {
   font-size: 20px;
   font-weight: 700;
   color: #4f8cff;
+  background: linear-gradient(95deg, #4f8cff, #8b5cf6 92%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: -0.01em;
 }
 
 .version-badge {
@@ -36,6 +188,8 @@ body {
 }
 
 .layout {
+  position: relative;
+  z-index: 1;
   flex: 1;
   display: flex;
   min-height: 0;
@@ -51,6 +205,22 @@ body {
   width: 60%;
   border-right: 1px solid #232a38;
   position: relative;
+}
+
+.pdf-panel::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: -1px;
+  width: 1px;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    rgba(79, 140, 255, 0.4),
+    rgba(139, 92, 246, 0.16) 45%,
+    transparent 80%
+  );
 }
 
 .loader-stage {
@@ -76,21 +246,74 @@ body {
 .dropzone {
   flex: 1;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 26px;
   border: 2px dashed #232a38;
   border-radius: 12px;
-  background: #151a23;
+  background: rgba(21, 26, 35, 0.66);
+  backdrop-filter: blur(8px);
   color: #9aa4b2;
   text-align: center;
   padding: 20px;
   cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
+  transition: border-color 0.18s, background 0.18s, box-shadow 0.18s;
+}
+
+/* Hover sits one step below drag-over and must come first, so a real drag
+   still wins on source order. */
+.dropzone:hover {
+  border-color: #3a5a99;
+  background: rgba(23, 29, 41, 0.78);
+  box-shadow: inset 0 0 0 1px rgba(79, 140, 255, 0.06),
+    0 0 40px rgba(79, 140, 255, 0.05);
+}
+
+.dropzone:hover #dropzone-text {
+  color: #c7d0dc;
+}
+
+.dropzone:hover .hero-stage {
+  transform: translateY(-3px);
+}
+
+.dropzone:hover .hero-page {
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.45);
+}
+
+#dropzone-text {
+  margin: 0;
+  transition: color 0.18s;
+}
+
+.dropzone.attention {
+  animation: dropzone-attention 900ms ease-out 2;
+}
+
+@keyframes dropzone-attention {
+  0%,
+  100% {
+    border-color: #232a38;
+    box-shadow: none;
+  }
+  40% {
+    border-color: #4f8cff;
+    box-shadow: 0 0 0 4px rgba(79, 140, 255, 0.1),
+      0 0 60px rgba(79, 140, 255, 0.12);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dropzone.attention {
+    animation: none;
+    border-color: #4f8cff;
+  }
 }
 
 .dropzone.drag-over {
   border-color: #4f8cff;
-  background: #182236;
+  background: rgba(24, 34, 54, 0.85);
 }
 
 .dropzone.error p {
@@ -99,6 +322,294 @@ body {
 
 .dropzone[hidden] {
   display: none;
+}
+
+/* Dropzone hero: a looping mini-demo of the product, driven by hero.js.
+   Purely decorative, so it never swallows a click or a dropped file. */
+.hero {
+  pointer-events: none;
+  width: 100%;
+  max-width: 600px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  transition: opacity 0.15s;
+}
+
+.dropzone.drag-over .hero,
+.dropzone.error .hero {
+  opacity: 0.2;
+}
+
+.dropzone.error .hero-caption {
+  color: #6b7280;
+}
+
+.hero-stage {
+  display: grid;
+  grid-template-columns: 148px 1fr;
+  gap: 20px;
+  width: 100%;
+  height: 208px;
+  transition: opacity 500ms ease, transform 280ms ease;
+}
+
+.hero-stage.out {
+  opacity: 0;
+}
+
+/* Left: a miniature page, with the quote lines that light up. */
+.hero-page {
+  position: relative;
+  height: 100%;
+  padding: 14px 12px;
+  border: 1px solid #232a38;
+  border-radius: 8px;
+  background: #0b0e14;
+  overflow: hidden;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.35);
+  transition: box-shadow 0.18s;
+}
+
+.hero-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.hero-lines i {
+  display: block;
+  height: 5px;
+  border-radius: 2px;
+  background: #232a38;
+  transition: background 260ms ease;
+}
+
+.hero-page.lit .hero-hl {
+  background: rgba(255, 214, 0, 0.35);
+}
+
+.hero-page.pulse .hero-hl {
+  animation: hero-flare 700ms ease-out;
+}
+
+@keyframes hero-flare {
+  0% {
+    background: rgba(255, 214, 0, 0.95);
+    box-shadow: 0 0 10px rgba(255, 214, 0, 0.45);
+  }
+  100% {
+    background: rgba(255, 214, 0, 0.35);
+    box-shadow: none;
+  }
+}
+
+.hero-page-no {
+  position: absolute;
+  right: 9px;
+  bottom: 7px;
+  font-size: 9px;
+  color: #4b5563;
+}
+
+.hero-scan {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 2px;
+  opacity: 0;
+  background: linear-gradient(90deg, transparent, #4f8cff, transparent);
+  box-shadow: 0 0 12px rgba(79, 140, 255, 0.6);
+}
+
+.hero-page.scanning .hero-scan {
+  animation: hero-scan 1.5s ease-in-out;
+}
+
+@keyframes hero-scan {
+  0% {
+    opacity: 0;
+    transform: translateY(0);
+  }
+  15%,
+  85% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(196px);
+  }
+}
+
+/* Right: the chat, at the same scale. Fixed height, so nothing jumps as the
+   bubbles arrive one by one. */
+.hero-chat {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  height: 100%;
+}
+
+.hero-bubble {
+  max-width: 92%;
+  padding: 8px 11px;
+  border-radius: 10px;
+  font-size: 12px;
+  line-height: 1.45;
+  text-align: left;
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 240ms ease, transform 240ms ease;
+}
+
+.hero-bubble.on {
+  opacity: 1;
+  transform: none;
+}
+
+.hero-bubble-q {
+  align-self: flex-end;
+  max-width: 80%;
+  background: #4f8cff;
+  color: #fff;
+  border-bottom-right-radius: 2px;
+}
+
+.hero-bubble-a {
+  background: #0b0e14;
+  border: 1px solid #232a38;
+  border-left: 3px solid #4f8cff;
+  border-bottom-left-radius: 2px;
+  color: #e6e8eb;
+}
+
+.hero-bubble.typing span::after {
+  content: "";
+  display: inline-block;
+  width: 2px;
+  height: 11px;
+  margin-left: 2px;
+  vertical-align: -1px;
+  background: currentColor;
+  animation: hero-caret 0.8s steps(1) infinite;
+}
+
+@keyframes hero-caret {
+  0%,
+  50% {
+    opacity: 1;
+  }
+  51%,
+  100% {
+    opacity: 0;
+  }
+}
+
+.hero-status {
+  font-size: 11px;
+  color: #6b7280;
+  opacity: 0;
+  transition: opacity 240ms ease;
+}
+
+.hero-status.on {
+  opacity: 1;
+  animation: hero-breathe 1.2s ease-in-out infinite;
+}
+
+@keyframes hero-breathe {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.hero-source {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 240ms ease, transform 240ms ease;
+}
+
+.hero-source.on {
+  opacity: 1;
+  transform: none;
+}
+
+.hero-scope {
+  font-size: 10px;
+  color: #6b7280;
+}
+
+.hero-chip {
+  padding: 4px 10px;
+  border-radius: 20px;
+  border: 1px solid #4f8cff;
+  background: rgba(79, 140, 255, 0.12);
+  color: #4f8cff;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.hero-source.on .hero-chip {
+  animation: hero-chip-pop 360ms ease-out;
+}
+
+@keyframes hero-chip-pop {
+  0% {
+    transform: scale(0.8);
+  }
+  60% {
+    transform: scale(1.08);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.hero-caption {
+  margin: 0;
+  max-width: 460px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #6b7280;
+}
+
+/* A short panel keeps the drop instruction; the demo gives up its room first. */
+@media (max-height: 660px) {
+  .hero-caption {
+    display: none;
+  }
+  .hero-stage {
+    height: 168px;
+  }
+}
+
+@media (max-height: 520px) {
+  .hero {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dropzone:hover .hero-stage {
+    transform: none;
+  }
+  .hero-page.scanning .hero-scan,
+  .hero-page.pulse .hero-hl,
+  .hero-bubble.typing span::after,
+  .hero-status.on,
+  .hero-source.on .hero-chip {
+    animation: none;
+  }
 }
 
 .pdf-viewer {
@@ -288,9 +799,15 @@ body {
   transition: border-color 0.15s, color 0.15s;
 }
 
-.suggested-chip:hover {
+.suggested-chip:not(:disabled):hover {
   border-color: #4f8cff;
   color: #e6e8eb;
+}
+
+/* Inert until a document is loaded, and honest about it. */
+.suggested-chip:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .chat-msg-wrap {
@@ -496,18 +1013,95 @@ body {
 }
 
 .chat-input-row {
+  position: relative;
   display: flex;
-  gap: 8px;
-  margin-top: 12px;
+  gap: 10px;
+  margin-top: 14px;
 }
 
+/* The locked state is a button, not a dead input: clicking it opens the file
+   picker and draws the eye back to the dropzone. */
+.chat-lock {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px 0 16px;
+  border: 1px dashed #2f3d57;
+  border-radius: 10px;
+  background: rgba(11, 14, 20, 0.94);
+  color: #9aa4b2;
+  font-family: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.chat-lock[hidden] {
+  display: none;
+}
+
+.chat-lock:hover {
+  border-color: #4f8cff;
+  background: rgba(17, 23, 35, 0.96);
+  color: #cbd5e1;
+}
+
+.chat-lock-icon {
+  display: flex;
+  color: #4f8cff;
+}
+
+.chat-lock-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-lock-cta {
+  flex-shrink: 0;
+  padding: 7px 13px;
+  border: 1px solid rgba(79, 140, 255, 0.45);
+  border-radius: 18px;
+  background: rgba(79, 140, 255, 0.14);
+  color: #4f8cff;
+  font-size: 12px;
+  font-weight: 600;
+  transition: background 0.15s;
+}
+
+.chat-lock:hover .chat-lock-cta {
+  background: rgba(79, 140, 255, 0.26);
+}
+
+/* Form controls do not inherit the page font, so both the family and the size
+   are set here. Read from across a room, not from a laptop. */
 .chat-input {
   flex: 1;
-  padding: 10px 12px;
-  border-radius: 8px;
+  min-width: 0;
+  padding: 15px 18px;
+  border-radius: 10px;
   border: 1px solid #232a38;
   background: #0b0e14;
   color: #e6e8eb;
+  font-family: inherit;
+  font-size: 17px;
+  line-height: 1.3;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.chat-input::placeholder {
+  color: #6b7280;
+}
+
+.chat-input:focus {
+  outline: none;
+  border-color: #4f8cff;
+  box-shadow: 0 0 0 3px rgba(79, 140, 255, 0.15);
 }
 
 .chat-input:disabled {
@@ -515,13 +1109,21 @@ body {
 }
 
 .chat-send {
-  padding: 10px 16px;
-  border-radius: 8px;
+  padding: 15px 24px;
+  border-radius: 10px;
   border: none;
   background: #4f8cff;
   color: #fff;
+  font-family: inherit;
+  font-size: 16px;
   font-weight: 600;
+  white-space: nowrap;
   cursor: pointer;
+  transition: background 0.15s;
+}
+
+.chat-send:not(:disabled):hover {
+  background: #6b9dff;
 }
 
 .chat-send:disabled {

@@ -9,6 +9,20 @@
 </head>
 <body>
   <header class="topbar">
+    <span class="brand-mark" aria-hidden="true">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none">
+        <path
+          d="M13.5 3H7.5A2.5 2.5 0 0 0 5 5.5v13A2.5 2.5 0 0 0 7.5 21h9a2.5 2.5 0 0 0 2.5-2.5V8.5L13.5 3z"
+          stroke="#fff" stroke-width="1.5" stroke-linejoin="round" />
+        <path d="M13.5 3v5.5H19" stroke="#fff" stroke-width="1.5" stroke-linejoin="round" />
+        <path d="M8.9 13.4 14.6 11.9M8.9 13.4l4.6 3.9M14.6 11.9l-1.1 5.4"
+          stroke="#fff" stroke-width="1.1" stroke-linecap="round" opacity="0.65" />
+        <circle cx="8.9" cy="13.4" r="1.7" fill="#fff" />
+        <circle cx="14.6" cy="11.9" r="1.2" fill="#fff" />
+        <circle cx="13.5" cy="17.3" r="1.2" fill="#fff" />
+      </svg>
+      <i class="brand-spark"></i>
+    </span>
     <span class="brand">DocSense</span>
     <span class="version-badge">v0.9 beta</span>
   </header>
@@ -16,6 +30,39 @@
   <main class="layout">
     <section class="panel pdf-panel">
       <div class="dropzone" id="dropzone">
+        <div class="hero" id="hero" aria-hidden="true">
+          <div class="hero-stage" id="hero-stage">
+            <div class="hero-page" id="hero-page">
+              <div class="hero-lines">
+                <i style="width: 92%"></i>
+                <i style="width: 76%"></i>
+                <i style="width: 88%"></i>
+                <i class="hero-hl" style="width: 95%"></i>
+                <i class="hero-hl" style="width: 61%"></i>
+                <i style="width: 90%"></i>
+                <i style="width: 82%"></i>
+                <i style="width: 71%"></i>
+                <i style="width: 86%"></i>
+                <i style="width: 38%"></i>
+              </div>
+              <div class="hero-scan"></div>
+              <span class="hero-page-no">7</span>
+            </div>
+            <div class="hero-chat">
+              <div class="hero-bubble hero-bubble-q" id="hero-q"><span></span></div>
+              <div class="hero-status" id="hero-status">Tegishli bo'limlar qidirilmoqda</div>
+              <div class="hero-bubble hero-bubble-a" id="hero-a"><span></span></div>
+              <div class="hero-source" id="hero-source">
+                <span class="hero-scope">Manba</span>
+                <span class="hero-chip">7-sahifa</span>
+              </div>
+            </div>
+          </div>
+          <p class="hero-caption">
+            Savol bering &mdash; javob hujjat ichidan topiladi va aynan o'sha joy belgilanadi
+          </p>
+        </div>
+
         <p id="dropzone-text">PDF faylni shu yerga tashlang yoki tanlang</p>
         <input type="file" id="file-input" accept="application/pdf" hidden />
       </div>
@@ -53,11 +100,11 @@
       <div class="chat-messages" id="chat-messages">
         <div class="chat-empty" id="chat-empty">
           <div class="chat-empty-mark">DocSense</div>
-          <p>Hujjatingiz haqida savol bering</p>
+          <p id="chat-empty-text">Hujjat yuklansa, shu yerda savol bera olasiz</p>
           <div class="suggested-chips" id="suggested-chips">
-            <button class="suggested-chip" type="button">Bu hujjat nima haqida?</button>
-            <button class="suggested-chip" type="button">Asosiy g'oyalarni sanab bering</button>
-            <button class="suggested-chip" type="button">Qisqacha xulosa bering</button>
+            <button class="suggested-chip" type="button" disabled>Bu hujjat nima haqida?</button>
+            <button class="suggested-chip" type="button" disabled>Asosiy g'oyalarni sanab bering</button>
+            <button class="suggested-chip" type="button" disabled>Qisqacha xulosa bering</button>
           </div>
         </div>
       </div>
@@ -70,12 +117,28 @@
           disabled
         />
         <button id="chat-send" class="chat-send" disabled>Yuborish</button>
+
+        <!-- Covers the row until a PDF is loaded: says why it is locked and
+             does the unlocking itself. -->
+        <button type="button" class="chat-lock" id="chat-lock">
+          <span class="chat-lock-icon">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="17 8 12 3 7 8" />
+              <line x1="12" y1="3" x2="12" y2="15" />
+            </svg>
+          </span>
+          <span class="chat-lock-text">Savol berish uchun avval PDF yuklang</span>
+          <span class="chat-lock-cta">PDF tanlash</span>
+        </button>
       </div>
     </section>
   </main>
 
   <script src="markdown.js"></script>
   <script src="loader.js"></script>
+  <script src="hero.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

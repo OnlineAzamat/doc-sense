@@ -28,7 +28,7 @@ Priority order:
   group falls back to its own first chunk verbatim — never to another model.
 - Vector search: plain numpy cosine similarity, in memory. No FAISS, no Qdrant,
   no Chroma. The corpus is one document.
-- Frontend: `index.html` + `app.js` + `loader.js` + `markdown.js` +
+- Frontend: `index.html` + `app.js` + `loader.js` + `hero.js` + `markdown.js` +
   `style.css`, served by
   FastAPI. PDF.js from CDN. No React, no build step, no npm.
 
@@ -52,6 +52,7 @@ docsense/
     index.html
     app.js
     loader.js        # canvas upload-analysis animation
+    hero.js          # looping mini-demo inside the empty dropzone
     markdown.js      # tiny Markdown -> HTML renderer for answers
     style.css
   cache/             # gitignored
@@ -198,13 +199,60 @@ Resilience: on `error` the animation stops, the canvas content fades and one lin
 remains — "Qayta urinib ko'ring.". `prefers-reduced-motion` gives a static grid
 with no scan line and no particles. The rAF loop pauses while the tab is hidden.
 
+## The dropzone hero
+Before any upload the dropzone is not empty text — `static/hero.js` loops a
+miniature of the product so a non-technical viewer sees what it does without
+being told: a question types into a small chat, a scan line sweeps a miniature
+page, the quote lines light up in the highlight yellow, the answer types in, and
+a "7-sahifa" chip pops in and pulses that same highlight.
+
+- The markup is static in `index.html` and every visual state is a CSS class.
+  `hero.js` only advances the timeline, so nothing can half-render.
+- The hero is `pointer-events: none` — clicks and dropped files still reach the
+  dropzone underneath. Never let it capture input.
+- One cycle is ~9s: question -> search -> highlight + answer -> chip -> hold ->
+  fade -> repeat.
+- It stops itself. A `MutationObserver` on the dropzone's `hidden` attribute
+  stops the loop when the loader takes over and restarts it if a failed upload
+  brings the dropzone back; `visibilitychange` pauses it with the tab. Cancelling
+  bumps a token that every step checks, so a stopped cycle unwinds instead of
+  drawing into a hidden panel.
+- `prefers-reduced-motion` renders the final frame once — full text, lit
+  highlight, visible chip — and never starts the loop.
+- Hovering the panel lifts the whole thing a little: the border warms toward the
+  accent, the stage rises 3px and the instruction brightens. It is deliberately
+  weaker than `drag-over` and declared before it, so an actual drag still reads
+  as the stronger state.
+- It shrinks before the drop instruction does: the caption drops under 660px of
+  panel height, the whole hero hides under 520px.
+
 ## UI rules
 - Dark theme. Background `#0B0E14`, panels `#151A23`, accent `#4F8CFF`,
   highlight overlay `rgba(255, 214, 0, 0.35)`.
+- Behind everything sit two fixed aura layers (`body::before` / `body::after`):
+  blue `#4F8CFF`, violet `#8B5CF6` and a little cyan `#22D3EE`, drifting over
+  34s and 46s. They are the one place the palette leaves the accent blue, they
+  never exceed 0.16 alpha, and `prefers-reduced-motion` freezes them. Panels are
+  translucent over that aura, so a solid `#151A23` fill is now wrong — use
+  `rgba(21, 26, 35, ~0.7)` with a blur. The PDF page itself stays opaque.
 - Two-column layout: PDF viewer left (60%), chat right (40%).
-- Product name "DocSense" top-left, version badge `v0.9 beta` next to it.
+- Product name "DocSense" top-left, version badge `v0.9 beta` next to it. Left
+  of the name sits the brand mark: an inline SVG of a document whose contents
+  are a small node graph, on a blue-to-violet tile with a breathing glow and a
+  cyan spark dot. Same gradient as the aura and as the wordmark, so the mark,
+  the name and the background read as one system. No image file, no icon font.
 - On upload, the left panel runs the canvas animation above. Never a bare
   spinner, and never a static placeholder caption.
+- The question input is sized for a projector, not a laptop: 17px text, 15px
+  padding, and `font-family: inherit` — form controls do not inherit the page
+  font on their own. The send button matches its height.
+- Before a PDF is loaded the chat is locked, and the lock explains itself. A
+  button covers the input row — "Savol berish uchun avval PDF yuklang" plus a
+  "PDF tanlash" pill — and clicking it opens the file picker and flashes the
+  dropzone. The suggested chips are `disabled` and the empty state reads
+  "Hujjat yuklansa, shu yerda savol bera olasiz". `enableChat()` undoes all of
+  it and focuses the input. Never leave a dead disabled input with no reason
+  given.
 - While waiting for an answer, show staged status text that advances every
   ~700ms: "Hujjat o'qilmoqda" -> "Tegishli bo'limlar qidirilmoqda" -> "Manba
   tekshirilmoqda" -> "Javob tayyorlanmoqda". Never show a bare spinner.

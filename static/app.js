@@ -29,6 +29,8 @@ const chatInput = document.getElementById("chat-input");
 const chatSend = document.getElementById("chat-send");
 const chatMessages = document.getElementById("chat-messages");
 const chatEmpty = document.getElementById("chat-empty");
+const chatEmptyText = document.getElementById("chat-empty-text");
+const chatLock = document.getElementById("chat-lock");
 const docSummary = document.getElementById("doc-summary");
 const docSummaryToggle = document.getElementById("doc-summary-toggle");
 const docSummaryBody = document.getElementById("doc-summary-body");
@@ -171,6 +173,12 @@ function renderStats(meta, done) {
 function enableChat() {
   chatInput.disabled = false;
   chatSend.disabled = false;
+  chatLock.hidden = true;
+  chatEmptyText.textContent = "Hujjatingiz haqida savol bering";
+  document
+    .querySelectorAll(".suggested-chip")
+    .forEach((chip) => (chip.disabled = false));
+  chatInput.focus();
 }
 
 function renderSummary(summary) {
@@ -599,6 +607,16 @@ document.querySelectorAll(".suggested-chip").forEach((chip) => {
 });
 
 dropzone.addEventListener("click", () => fileInput.click());
+
+// The locked chat row unlocks itself: it opens the picker and flashes the
+// dropzone, so the answer to "why can't I type?" is on screen either way.
+chatLock.addEventListener("click", () => {
+  fileInput.click();
+  dropzone.classList.remove("attention");
+  void dropzone.offsetWidth;
+  dropzone.classList.add("attention");
+  setTimeout(() => dropzone.classList.remove("attention"), 1900);
+});
 
 fileInput.addEventListener("change", () => {
   if (fileInput.files[0]) {
