@@ -87,7 +87,7 @@ body::after {
   z-index: 1;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 9px;
   padding: 13px 20px;
   background: rgba(21, 26, 35, 0.72);
   backdrop-filter: blur(14px);
@@ -111,10 +111,72 @@ body::after {
   );
 }
 
+/* A document whose contents are a small graph — the two things the product
+   does, in one mark. Its gradient is the aura's, so the page reads as one
+   system. */
+.brand-mark {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  background: linear-gradient(135deg, #4f8cff, #8b5cf6);
+  box-shadow: 0 4px 16px rgba(79, 140, 255, 0.35);
+  animation: brand-breathe 4.5s ease-in-out infinite;
+}
+
+.brand-spark {
+  position: absolute;
+  top: -1px;
+  right: -1px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #22d3ee;
+  border: 2px solid #151a23;
+  animation: brand-spark 2.4s ease-in-out infinite;
+}
+
+@keyframes brand-breathe {
+  0%,
+  100% {
+    box-shadow: 0 4px 16px rgba(79, 140, 255, 0.3);
+  }
+  50% {
+    box-shadow: 0 4px 22px rgba(139, 92, 246, 0.5);
+  }
+}
+
+@keyframes brand-spark {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(0.85);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brand-mark,
+  .brand-spark {
+    animation: none;
+  }
+}
+
 .brand {
   font-size: 20px;
   font-weight: 700;
   color: #4f8cff;
+  background: linear-gradient(95deg, #4f8cff, #8b5cf6 92%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: -0.01em;
 }
 
 .version-badge {
