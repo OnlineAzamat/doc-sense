@@ -12,13 +12,103 @@ body {
   font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
+/* Two slow-drifting aura layers behind everything. They are the only place the
+   palette leaves the accent blue, and they stay under 0.16 alpha so panel text
+   never loses contrast. Fixed, so scrolling the PDF does not move them. */
+body::before,
+body::after {
+  content: "";
+  position: fixed;
+  inset: -20%;
+  z-index: 0;
+  pointer-events: none;
+  will-change: transform;
+}
+
+body::before {
+  background:
+    radial-gradient(
+      44% 38% at 14% 2%,
+      rgba(79, 140, 255, 0.16),
+      transparent 68%
+    ),
+    radial-gradient(
+      40% 34% at 88% 6%,
+      rgba(139, 92, 246, 0.13),
+      transparent 66%
+    );
+  animation: aura-drift-a 34s ease-in-out infinite;
+}
+
+body::after {
+  background:
+    radial-gradient(
+      46% 40% at 78% 96%,
+      rgba(34, 211, 238, 0.09),
+      transparent 66%
+    ),
+    radial-gradient(
+      38% 36% at 24% 88%,
+      rgba(79, 140, 255, 0.08),
+      transparent 68%
+    );
+  animation: aura-drift-b 46s ease-in-out infinite;
+}
+
+@keyframes aura-drift-a {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(2.5%, 1.5%, 0) scale(1.08);
+  }
+}
+
+@keyframes aura-drift-b {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1.04);
+  }
+  50% {
+    transform: translate3d(-3%, -2%, 0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body::before,
+  body::after {
+    animation: none;
+  }
+}
+
 .topbar {
+  position: relative;
+  z-index: 1;
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 10px;
-  padding: 14px 20px;
-  background: #151a23;
+  padding: 13px 20px;
+  background: rgba(21, 26, 35, 0.72);
+  backdrop-filter: blur(14px);
   border-bottom: 1px solid #232a38;
+}
+
+/* The accent hairline that ties the bar to the aura behind it. */
+.topbar::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(79, 140, 255, 0.55),
+    rgba(139, 92, 246, 0.45),
+    transparent 85%
+  );
 }
 
 .brand {
@@ -36,6 +126,8 @@ body {
 }
 
 .layout {
+  position: relative;
+  z-index: 1;
   flex: 1;
   display: flex;
   min-height: 0;
@@ -51,6 +143,22 @@ body {
   width: 60%;
   border-right: 1px solid #232a38;
   position: relative;
+}
+
+.pdf-panel::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: -1px;
+  width: 1px;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    rgba(79, 140, 255, 0.4),
+    rgba(139, 92, 246, 0.16) 45%,
+    transparent 80%
+  );
 }
 
 .loader-stage {
@@ -82,7 +190,8 @@ body {
   gap: 26px;
   border: 2px dashed #232a38;
   border-radius: 12px;
-  background: #151a23;
+  background: rgba(21, 26, 35, 0.66);
+  backdrop-filter: blur(8px);
   color: #9aa4b2;
   text-align: center;
   padding: 20px;
@@ -94,7 +203,7 @@ body {
    still wins on source order. */
 .dropzone:hover {
   border-color: #3a5a99;
-  background: #171d29;
+  background: rgba(23, 29, 41, 0.78);
   box-shadow: inset 0 0 0 1px rgba(79, 140, 255, 0.06),
     0 0 40px rgba(79, 140, 255, 0.05);
 }
@@ -118,7 +227,7 @@ body {
 
 .dropzone.drag-over {
   border-color: #4f8cff;
-  background: #182236;
+  background: rgba(24, 34, 54, 0.85);
 }
 
 .dropzone.error p {
