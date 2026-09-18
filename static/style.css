@@ -225,6 +225,30 @@ body::after {
   transition: color 0.18s;
 }
 
+.dropzone.attention {
+  animation: dropzone-attention 900ms ease-out 2;
+}
+
+@keyframes dropzone-attention {
+  0%,
+  100% {
+    border-color: #232a38;
+    box-shadow: none;
+  }
+  40% {
+    border-color: #4f8cff;
+    box-shadow: 0 0 0 4px rgba(79, 140, 255, 0.1),
+      0 0 60px rgba(79, 140, 255, 0.12);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dropzone.attention {
+    animation: none;
+    border-color: #4f8cff;
+  }
+}
+
 .dropzone.drag-over {
   border-color: #4f8cff;
   background: rgba(24, 34, 54, 0.85);
@@ -713,9 +737,15 @@ body::after {
   transition: border-color 0.15s, color 0.15s;
 }
 
-.suggested-chip:hover {
+.suggested-chip:not(:disabled):hover {
   border-color: #4f8cff;
   color: #e6e8eb;
+}
+
+/* Inert until a document is loaded, and honest about it. */
+.suggested-chip:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .chat-msg-wrap {
@@ -921,9 +951,69 @@ body::after {
 }
 
 .chat-input-row {
+  position: relative;
   display: flex;
   gap: 10px;
   margin-top: 14px;
+}
+
+/* The locked state is a button, not a dead input: clicking it opens the file
+   picker and draws the eye back to the dropzone. */
+.chat-lock {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px 0 16px;
+  border: 1px dashed #2f3d57;
+  border-radius: 10px;
+  background: rgba(11, 14, 20, 0.94);
+  color: #9aa4b2;
+  font-family: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.chat-lock[hidden] {
+  display: none;
+}
+
+.chat-lock:hover {
+  border-color: #4f8cff;
+  background: rgba(17, 23, 35, 0.96);
+  color: #cbd5e1;
+}
+
+.chat-lock-icon {
+  display: flex;
+  color: #4f8cff;
+}
+
+.chat-lock-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-lock-cta {
+  flex-shrink: 0;
+  padding: 7px 13px;
+  border: 1px solid rgba(79, 140, 255, 0.45);
+  border-radius: 18px;
+  background: rgba(79, 140, 255, 0.14);
+  color: #4f8cff;
+  font-size: 12px;
+  font-weight: 600;
+  transition: background 0.15s;
+}
+
+.chat-lock:hover .chat-lock-cta {
+  background: rgba(79, 140, 255, 0.26);
 }
 
 /* Form controls do not inherit the page font, so both the family and the size

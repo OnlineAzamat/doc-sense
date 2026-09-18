@@ -242,6 +242,13 @@ a "7-sahifa" chip pops in and pulses that same highlight.
 - The question input is sized for a projector, not a laptop: 17px text, 15px
   padding, and `font-family: inherit` — form controls do not inherit the page
   font on their own. The send button matches its height.
+- Before a PDF is loaded the chat is locked, and the lock explains itself. A
+  button covers the input row — "Savol berish uchun avval PDF yuklang" plus a
+  "PDF tanlash" pill — and clicking it opens the file picker and flashes the
+  dropzone. The suggested chips are `disabled` and the empty state reads
+  "Hujjat yuklansa, shu yerda savol bera olasiz". `enableChat()` undoes all of
+  it and focuses the input. Never leave a dead disabled input with no reason
+  given.
 - While waiting for an answer, show staged status text that advances every
   ~700ms: "Hujjat o'qilmoqda" -> "Tegishli bo'limlar qidirilmoqda" -> "Manba
   tekshirilmoqda" -> "Javob tayyorlanmoqda". Never show a bare spinner.

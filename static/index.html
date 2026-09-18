@@ -86,11 +86,11 @@
       <div class="chat-messages" id="chat-messages">
         <div class="chat-empty" id="chat-empty">
           <div class="chat-empty-mark">DocSense</div>
-          <p>Hujjatingiz haqida savol bering</p>
+          <p id="chat-empty-text">Hujjat yuklansa, shu yerda savol bera olasiz</p>
           <div class="suggested-chips" id="suggested-chips">
-            <button class="suggested-chip" type="button">Bu hujjat nima haqida?</button>
-            <button class="suggested-chip" type="button">Asosiy g'oyalarni sanab bering</button>
-            <button class="suggested-chip" type="button">Qisqacha xulosa bering</button>
+            <button class="suggested-chip" type="button" disabled>Bu hujjat nima haqida?</button>
+            <button class="suggested-chip" type="button" disabled>Asosiy g'oyalarni sanab bering</button>
+            <button class="suggested-chip" type="button" disabled>Qisqacha xulosa bering</button>
           </div>
         </div>
       </div>
@@ -103,6 +103,21 @@
           disabled
         />
         <button id="chat-send" class="chat-send" disabled>Yuborish</button>
+
+        <!-- Covers the row until a PDF is loaded: says why it is locked and
+             does the unlocking itself. -->
+        <button type="button" class="chat-lock" id="chat-lock">
+          <span class="chat-lock-icon">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="17 8 12 3 7 8" />
+              <line x1="12" y1="3" x2="12" y2="15" />
+            </svg>
+          </span>
+          <span class="chat-lock-text">Savol berish uchun avval PDF yuklang</span>
+          <span class="chat-lock-cta">PDF tanlash</span>
+        </button>
       </div>
     </section>
   </main>
