@@ -229,6 +229,12 @@ a "7-sahifa" chip pops in and pulses that same highlight.
 ## UI rules
 - Dark theme. Background `#0B0E14`, panels `#151A23`, accent `#4F8CFF`,
   highlight overlay `rgba(255, 214, 0, 0.35)`.
+- Behind everything sit two fixed aura layers (`body::before` / `body::after`):
+  blue `#4F8CFF`, violet `#8B5CF6` and a little cyan `#22D3EE`, drifting over
+  34s and 46s. They are the one place the palette leaves the accent blue, they
+  never exceed 0.16 alpha, and `prefers-reduced-motion` freezes them. Panels are
+  translucent over that aura, so a solid `#151A23` fill is now wrong — use
+  `rgba(21, 26, 35, ~0.7)` with a blur. The PDF page itself stays opaque.
 - Two-column layout: PDF viewer left (60%), chat right (40%).
 - Product name "DocSense" top-left, version badge `v0.9 beta` next to it.
 - On upload, the left panel runs the canvas animation above. Never a bare
