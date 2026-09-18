@@ -76,8 +76,10 @@ body {
 .dropzone {
   flex: 1;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 26px;
   border: 2px dashed #232a38;
   border-radius: 12px;
   background: #151a23;
@@ -85,7 +87,33 @@ body {
   text-align: center;
   padding: 20px;
   cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
+  transition: border-color 0.18s, background 0.18s, box-shadow 0.18s;
+}
+
+/* Hover sits one step below drag-over and must come first, so a real drag
+   still wins on source order. */
+.dropzone:hover {
+  border-color: #3a5a99;
+  background: #171d29;
+  box-shadow: inset 0 0 0 1px rgba(79, 140, 255, 0.06),
+    0 0 40px rgba(79, 140, 255, 0.05);
+}
+
+.dropzone:hover #dropzone-text {
+  color: #c7d0dc;
+}
+
+.dropzone:hover .hero-stage {
+  transform: translateY(-3px);
+}
+
+.dropzone:hover .hero-page {
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.45);
+}
+
+#dropzone-text {
+  margin: 0;
+  transition: color 0.18s;
 }
 
 .dropzone.drag-over {
@@ -99,6 +127,294 @@ body {
 
 .dropzone[hidden] {
   display: none;
+}
+
+/* Dropzone hero: a looping mini-demo of the product, driven by hero.js.
+   Purely decorative, so it never swallows a click or a dropped file. */
+.hero {
+  pointer-events: none;
+  width: 100%;
+  max-width: 600px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  transition: opacity 0.15s;
+}
+
+.dropzone.drag-over .hero,
+.dropzone.error .hero {
+  opacity: 0.2;
+}
+
+.dropzone.error .hero-caption {
+  color: #6b7280;
+}
+
+.hero-stage {
+  display: grid;
+  grid-template-columns: 148px 1fr;
+  gap: 20px;
+  width: 100%;
+  height: 208px;
+  transition: opacity 500ms ease, transform 280ms ease;
+}
+
+.hero-stage.out {
+  opacity: 0;
+}
+
+/* Left: a miniature page, with the quote lines that light up. */
+.hero-page {
+  position: relative;
+  height: 100%;
+  padding: 14px 12px;
+  border: 1px solid #232a38;
+  border-radius: 8px;
+  background: #0b0e14;
+  overflow: hidden;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.35);
+  transition: box-shadow 0.18s;
+}
+
+.hero-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.hero-lines i {
+  display: block;
+  height: 5px;
+  border-radius: 2px;
+  background: #232a38;
+  transition: background 260ms ease;
+}
+
+.hero-page.lit .hero-hl {
+  background: rgba(255, 214, 0, 0.35);
+}
+
+.hero-page.pulse .hero-hl {
+  animation: hero-flare 700ms ease-out;
+}
+
+@keyframes hero-flare {
+  0% {
+    background: rgba(255, 214, 0, 0.95);
+    box-shadow: 0 0 10px rgba(255, 214, 0, 0.45);
+  }
+  100% {
+    background: rgba(255, 214, 0, 0.35);
+    box-shadow: none;
+  }
+}
+
+.hero-page-no {
+  position: absolute;
+  right: 9px;
+  bottom: 7px;
+  font-size: 9px;
+  color: #4b5563;
+}
+
+.hero-scan {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 2px;
+  opacity: 0;
+  background: linear-gradient(90deg, transparent, #4f8cff, transparent);
+  box-shadow: 0 0 12px rgba(79, 140, 255, 0.6);
+}
+
+.hero-page.scanning .hero-scan {
+  animation: hero-scan 1.5s ease-in-out;
+}
+
+@keyframes hero-scan {
+  0% {
+    opacity: 0;
+    transform: translateY(0);
+  }
+  15%,
+  85% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(196px);
+  }
+}
+
+/* Right: the chat, at the same scale. Fixed height, so nothing jumps as the
+   bubbles arrive one by one. */
+.hero-chat {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  height: 100%;
+}
+
+.hero-bubble {
+  max-width: 92%;
+  padding: 8px 11px;
+  border-radius: 10px;
+  font-size: 12px;
+  line-height: 1.45;
+  text-align: left;
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 240ms ease, transform 240ms ease;
+}
+
+.hero-bubble.on {
+  opacity: 1;
+  transform: none;
+}
+
+.hero-bubble-q {
+  align-self: flex-end;
+  max-width: 80%;
+  background: #4f8cff;
+  color: #fff;
+  border-bottom-right-radius: 2px;
+}
+
+.hero-bubble-a {
+  background: #0b0e14;
+  border: 1px solid #232a38;
+  border-left: 3px solid #4f8cff;
+  border-bottom-left-radius: 2px;
+  color: #e6e8eb;
+}
+
+.hero-bubble.typing span::after {
+  content: "";
+  display: inline-block;
+  width: 2px;
+  height: 11px;
+  margin-left: 2px;
+  vertical-align: -1px;
+  background: currentColor;
+  animation: hero-caret 0.8s steps(1) infinite;
+}
+
+@keyframes hero-caret {
+  0%,
+  50% {
+    opacity: 1;
+  }
+  51%,
+  100% {
+    opacity: 0;
+  }
+}
+
+.hero-status {
+  font-size: 11px;
+  color: #6b7280;
+  opacity: 0;
+  transition: opacity 240ms ease;
+}
+
+.hero-status.on {
+  opacity: 1;
+  animation: hero-breathe 1.2s ease-in-out infinite;
+}
+
+@keyframes hero-breathe {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.hero-source {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 240ms ease, transform 240ms ease;
+}
+
+.hero-source.on {
+  opacity: 1;
+  transform: none;
+}
+
+.hero-scope {
+  font-size: 10px;
+  color: #6b7280;
+}
+
+.hero-chip {
+  padding: 4px 10px;
+  border-radius: 20px;
+  border: 1px solid #4f8cff;
+  background: rgba(79, 140, 255, 0.12);
+  color: #4f8cff;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.hero-source.on .hero-chip {
+  animation: hero-chip-pop 360ms ease-out;
+}
+
+@keyframes hero-chip-pop {
+  0% {
+    transform: scale(0.8);
+  }
+  60% {
+    transform: scale(1.08);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.hero-caption {
+  margin: 0;
+  max-width: 460px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #6b7280;
+}
+
+/* A short panel keeps the drop instruction; the demo gives up its room first. */
+@media (max-height: 660px) {
+  .hero-caption {
+    display: none;
+  }
+  .hero-stage {
+    height: 168px;
+  }
+}
+
+@media (max-height: 520px) {
+  .hero {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dropzone:hover .hero-stage {
+    transform: none;
+  }
+  .hero-page.scanning .hero-scan,
+  .hero-page.pulse .hero-hl,
+  .hero-bubble.typing span::after,
+  .hero-status.on,
+  .hero-source.on .hero-chip {
+    animation: none;
+  }
 }
 
 .pdf-viewer {
@@ -497,17 +813,34 @@ body {
 
 .chat-input-row {
   display: flex;
-  gap: 8px;
-  margin-top: 12px;
+  gap: 10px;
+  margin-top: 14px;
 }
 
+/* Form controls do not inherit the page font, so both the family and the size
+   are set here. Read from across a room, not from a laptop. */
 .chat-input {
   flex: 1;
-  padding: 10px 12px;
-  border-radius: 8px;
+  min-width: 0;
+  padding: 15px 18px;
+  border-radius: 10px;
   border: 1px solid #232a38;
   background: #0b0e14;
   color: #e6e8eb;
+  font-family: inherit;
+  font-size: 17px;
+  line-height: 1.3;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.chat-input::placeholder {
+  color: #6b7280;
+}
+
+.chat-input:focus {
+  outline: none;
+  border-color: #4f8cff;
+  box-shadow: 0 0 0 3px rgba(79, 140, 255, 0.15);
 }
 
 .chat-input:disabled {
@@ -515,13 +848,21 @@ body {
 }
 
 .chat-send {
-  padding: 10px 16px;
-  border-radius: 8px;
+  padding: 15px 24px;
+  border-radius: 10px;
   border: none;
   background: #4f8cff;
   color: #fff;
+  font-family: inherit;
+  font-size: 16px;
   font-weight: 600;
+  white-space: nowrap;
   cursor: pointer;
+  transition: background 0.15s;
+}
+
+.chat-send:not(:disabled):hover {
+  background: #6b9dff;
 }
 
 .chat-send:disabled {

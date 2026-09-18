@@ -28,7 +28,7 @@ Priority order:
   group falls back to its own first chunk verbatim — never to another model.
 - Vector search: plain numpy cosine similarity, in memory. No FAISS, no Qdrant,
   no Chroma. The corpus is one document.
-- Frontend: `index.html` + `app.js` + `loader.js` + `markdown.js` +
+- Frontend: `index.html` + `app.js` + `loader.js` + `hero.js` + `markdown.js` +
   `style.css`, served by
   FastAPI. PDF.js from CDN. No React, no build step, no npm.
 
@@ -52,6 +52,7 @@ docsense/
     index.html
     app.js
     loader.js        # canvas upload-analysis animation
+    hero.js          # looping mini-demo inside the empty dropzone
     markdown.js      # tiny Markdown -> HTML renderer for answers
     style.css
   cache/             # gitignored
@@ -198,6 +199,33 @@ Resilience: on `error` the animation stops, the canvas content fades and one lin
 remains — "Qayta urinib ko'ring.". `prefers-reduced-motion` gives a static grid
 with no scan line and no particles. The rAF loop pauses while the tab is hidden.
 
+## The dropzone hero
+Before any upload the dropzone is not empty text — `static/hero.js` loops a
+miniature of the product so a non-technical viewer sees what it does without
+being told: a question types into a small chat, a scan line sweeps a miniature
+page, the quote lines light up in the highlight yellow, the answer types in, and
+a "7-sahifa" chip pops in and pulses that same highlight.
+
+- The markup is static in `index.html` and every visual state is a CSS class.
+  `hero.js` only advances the timeline, so nothing can half-render.
+- The hero is `pointer-events: none` — clicks and dropped files still reach the
+  dropzone underneath. Never let it capture input.
+- One cycle is ~9s: question -> search -> highlight + answer -> chip -> hold ->
+  fade -> repeat.
+- It stops itself. A `MutationObserver` on the dropzone's `hidden` attribute
+  stops the loop when the loader takes over and restarts it if a failed upload
+  brings the dropzone back; `visibilitychange` pauses it with the tab. Cancelling
+  bumps a token that every step checks, so a stopped cycle unwinds instead of
+  drawing into a hidden panel.
+- `prefers-reduced-motion` renders the final frame once — full text, lit
+  highlight, visible chip — and never starts the loop.
+- Hovering the panel lifts the whole thing a little: the border warms toward the
+  accent, the stage rises 3px and the instruction brightens. It is deliberately
+  weaker than `drag-over` and declared before it, so an actual drag still reads
+  as the stronger state.
+- It shrinks before the drop instruction does: the caption drops under 660px of
+  panel height, the whole hero hides under 520px.
+
 ## UI rules
 - Dark theme. Background `#0B0E14`, panels `#151A23`, accent `#4F8CFF`,
   highlight overlay `rgba(255, 214, 0, 0.35)`.
@@ -205,6 +233,9 @@ with no scan line and no particles. The rAF loop pauses while the tab is hidden.
 - Product name "DocSense" top-left, version badge `v0.9 beta` next to it.
 - On upload, the left panel runs the canvas animation above. Never a bare
   spinner, and never a static placeholder caption.
+- The question input is sized for a projector, not a laptop: 17px text, 15px
+  padding, and `font-family: inherit` — form controls do not inherit the page
+  font on their own. The send button matches its height.
 - While waiting for an answer, show staged status text that advances every
   ~700ms: "Hujjat o'qilmoqda" -> "Tegishli bo'limlar qidirilmoqda" -> "Manba
   tekshirilmoqda" -> "Javob tayyorlanmoqda". Never show a bare spinner.
